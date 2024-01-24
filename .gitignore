@@ -58,3 +58,4 @@ Makefile
 sftpbatchfile
 archive
 bin
+*.swp
