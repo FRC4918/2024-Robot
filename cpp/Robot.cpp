@@ -49,6 +49,8 @@
 #include "rev/CANSparkMax.h"
 #include "ctre/Phoenix.h"
 
+
+
 /*
  * This is a demo program showing the use of the DifferentialDrive class.
  * Runs the motors with arcade steering (if JOYSTICK is defined), or
@@ -60,10 +62,10 @@ class Robot : public frc::TimedRobot {
   frc::PWMSparkMax m_LeftDriveMotor{     0 };
   frc::PWMSparkMax m_RightDriveMotor{    1 };
 #else
-  WPI_TalonSRX m_LeftDriveMotor{      0 };
-  WPI_TalonSRX m_LeftDriveMotorRear{  1 };
-  WPI_TalonSRX m_RightDriveMotor{     2 };
-  WPI_TalonSRX m_RightDriveMotorRear{ 3 };
+  WPI_TalonSRX m_LeftDriveMotor{        3 };
+  WPI_VictorSPX m_LeftDriveMotorRear{  11 };
+  WPI_TalonSRX m_RightDriveMotor{      12 };
+  WPI_VictorSPX m_RightDriveMotorRear{  4 };
 #endif
 
   frc::DifferentialDrive m_robotDrive{
@@ -84,7 +86,7 @@ class Robot : public frc::TimedRobot {
   static void VisionThread() {
     frc::AprilTagDetector detector;
     // look for tag36h11, correct 3 error bits
-    detector.AddFamily("tag36h11", 3);
+    detector.AddFamily("tag36h11", 0);
 
     // Set up Pose Estimator - parameters are for a Microsoft Lifecam HD-3000
     // (https://www.chiefdelphi.com/t/wpilib-apriltagdetector-sample-code/421411/21)
@@ -113,7 +115,10 @@ class Robot : public frc::TimedRobot {
 
     // Instantiate once
     std::vector<int64_t> tags;
-    cv::Scalar outlineColor{0, 255, 0};
+    // Outline colors in bgr, not rgb
+    cv::Scalar outlineColor{0, 255, 0}; // green
+    cv::Scalar outlineColorTop{0, 0, 255}; // red
+    cv::Scalar outlineColorBottom{255, 0, 0}; // blue
     cv::Scalar crossColor{0, 0, 255};
 
     // We'll output to NT
@@ -150,8 +155,25 @@ class Robot : public frc::TimedRobot {
           int j = (i + 1) % 4;
           const frc::AprilTagDetection::Point pti = detection->GetCorner(i);
           const frc::AprilTagDetection::Point ptj = detection->GetCorner(j);
-          line(mat, cv::Point(pti.x, pti.y), cv::Point(ptj.x, ptj.y),
-               outlineColor, 2);
+          // draws sides different colors
+          switch (i) {
+            case 0: {
+              //bottom
+              line(mat, cv::Point(pti.x, pti.y), cv::Point(ptj.x, ptj.y),
+              outlineColorBottom, 2);
+              break;
+            }
+            case 2: {
+              //top
+              line(mat, cv::Point(pti.x, pti.y), cv::Point(ptj.x, ptj.y),
+              outlineColorTop, 2);
+              break;
+            }
+            default: {
+              line(mat, cv::Point(pti.x, pti.y), cv::Point(ptj.x, ptj.y),
+              outlineColor, 2);
+            }
+          }
         }
 
         // mark the center of the tag
@@ -189,7 +211,6 @@ class Robot : public frc::TimedRobot {
       outputStream.PutFrame(mat);
     }
   }
-
   void MotorInitTalon( WPI_TalonSRX &m_motor )
   {
     m_motor.ConfigFactoryDefault( 10 );
@@ -221,6 +242,37 @@ class Robot : public frc::TimedRobot {
 
   }      // MotorInitTalon()
 
+  void MotorInitVictor( WPI_VictorSPX &m_motor )
+  {
+    m_motor.ConfigFactoryDefault( 10 );
+    m_motor.SetInverted( false );
+                                             /* Set the peak and nominal outputs */
+    m_motor.ConfigNominalOutputForward( 0, 10 );
+    m_motor.ConfigNominalOutputReverse( 0, 10 );
+    m_motor.ConfigPeakOutputForward(    1, 10 );
+    m_motor.ConfigPeakOutputReverse(   -1, 10 );
+
+            /* Set limits to how much current will be sent through the motor */
+    //m_motor.ConfigPeakCurrentDuration(1);  // 1000 milliseconds (for 60 Amps)
+#ifdef SAFETY_LIMITS
+    m_motor.ConfigPeakCurrentLimit(10);       // limit motor power severely
+    m_motor.ConfigContinuousCurrentLimit(10); // to 10 Amps
+#else
+    //m_motor.ConfigPeakCurrentLimit(60);          // 60 works here for miniCIMs,
+                                                 // or maybe 40 Amps is enough,
+                                                 // but we reduce to 10, 1, 10
+    //m_motor.ConfigContinuousCurrentLimit(60);    // for safety while debugging
+#endif
+    //m_motor.EnableCurrentLimit(true);
+
+                                          // Config 100% motor output to 12.0V
+    m_motor.ConfigVoltageCompSaturation( 12.0 );
+    m_motor.EnableVoltageCompensation( false );
+
+    m_motor.SetNeutralMode( NeutralMode::Brake );
+
+  }      // MotorInitVictor()
+
  public:
   Robot() {
     wpi::SendableRegistry::AddChild(&m_robotDrive, &m_LeftDriveMotor);
@@ -236,10 +288,10 @@ class Robot : public frc::TimedRobot {
     visionThread.detach();
 
 #ifndef SPARKMAXDRIVE
-    MotorInitTalon( m_LeftDriveMotor      );
-    MotorInitTalon( m_LeftDriveMotorRear  );
-    MotorInitTalon( m_RightDriveMotor     );
-    MotorInitTalon( m_RightDriveMotorRear );
+    MotorInitTalon( m_LeftDriveMotor       );
+    MotorInitVictor( m_LeftDriveMotorRear  );
+    MotorInitTalon( m_RightDriveMotor      );
+    MotorInitVictor( m_RightDriveMotorRear );
 
     m_LeftDriveMotorRear.Follow(  m_LeftDriveMotor  );
     m_RightDriveMotorRear.Follow( m_RightDriveMotor );
