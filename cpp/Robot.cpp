@@ -57,6 +57,8 @@
  * with split arcade steering and an Xbox controller.
  */
 
+static double faceAprilTag;
+
 class Robot : public frc::TimedRobot {
 #ifdef SPARKMAXDRIVE
   frc::PWMSparkMax m_LeftDriveMotor{     0 };
@@ -102,6 +104,7 @@ class Robot : public frc::TimedRobot {
     cs::UsbCamera camera = frc::CameraServer::StartAutomaticCapture();
     // Set the resolution
     camera.SetResolution(640, 480);
+    //camera.SetResolution(320, 240);
 
     // Get a CvSink. This will capture Mats from the Camera
     cs::CvSink cvSink = frc::CameraServer::GetVideo();
@@ -146,6 +149,8 @@ class Robot : public frc::TimedRobot {
       // have not seen any tags yet
       tags.clear();
 
+
+      faceAprilTag = 0;
       for (const frc::AprilTagDetection* detection : detections) {
         // remember we saw this tag
         tags.push_back(detection->GetId());
@@ -185,9 +190,20 @@ class Robot : public frc::TimedRobot {
              crossColor, 2);
 
         // identify the tag
-        putText(mat, std::to_string(detection->GetId()),
+        int tagId = detection->GetId();
+        putText(mat, std::to_string(tagId),
                 cv::Point(c.x + ll, c.y), cv::FONT_HERSHEY_SIMPLEX, 1,
                 crossColor, 3);
+        
+        // look for speaker tag (11)
+        double tagDist = (g_size.width/2)-c.x; //tag distance from center
+        if (7 == tagId) {
+          faceAprilTag = tagDist / (g_size.width / 2);
+          printf("motor turn value: %f\n", faceAprilTag);
+          if (faceAprilTag > 0.7 || faceAprilTag < -0.7) faceAprilTag /= 2;
+          if (faceAprilTag < 0.25 || faceAprilTag > -0.25) faceAprilTag *= 2;
+          
+        }
 
         // determine pose
         frc::Transform3d pose = estimator.Estimate(*detection);
@@ -317,8 +333,15 @@ class Robot : public frc::TimedRobot {
     // Drive with split arcade style
     // That means that the Y axis of the left stick moves forward
     // and backward, and the X of the right stick turns left and right.
-    m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
-                             -m_driverController.GetRightX());
+ 
+    
+    if (m_driverController.GetAButton()) {
+      m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
+                              faceAprilTag);
+    } else {
+      m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
+                              -m_driverController.GetRightX());
+    }
 #endif
   }
 };
@@ -328,3 +351,4 @@ int main() {
   return frc::StartRobot<Robot>();
 }
 #endif
+
