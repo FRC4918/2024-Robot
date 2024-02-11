@@ -48,7 +48,7 @@
 
 #include "rev/CANSparkMax.h"
 #include "ctre/Phoenix.h"
-
+#include <frc/ADIS16470_IMU.h>
 
 
 /*
@@ -58,6 +58,9 @@
  */
 
 static double faceAprilTag;
+static double desiredYaw;
+static units::angle::degree_t gyroYawHeading;
+static units::angular_velocity::degrees_per_second_t gyroYawRate;
 
 class Robot : public frc::TimedRobot {
 #ifdef SPARKMAXDRIVE
@@ -69,6 +72,10 @@ class Robot : public frc::TimedRobot {
   WPI_TalonSRX m_RightDriveMotor{      12 };
   WPI_VictorSPX m_RightDriveMotorRear{  4 };
 #endif
+  rev::CANSparkMax motor8{   8, rev::CANSparkMax::MotorType::kBrushed  };
+  rev::CANSparkMax motor10{ 10, rev::CANSparkMax::MotorType::kBrushed  };
+  rev::CANSparkMax motor11{ 11, rev::CANSparkMax::MotorType::kBrushless};
+  rev::CANSparkMax motor16{ 16, rev::CANSparkMax::MotorType::kBrushless};
 
   frc::DifferentialDrive m_robotDrive{
       [&](double output) { m_LeftDriveMotor.Set(output); },
@@ -78,6 +85,8 @@ class Robot : public frc::TimedRobot {
 #else
   frc::XboxController m_driverController{0};
 #endif
+
+frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
    /*
     * The VisionThread() function demonstrates the detection of AprilTags.
@@ -133,6 +142,8 @@ class Robot : public frc::TimedRobot {
       // Tell the CvSink to grab a frame from the camera and
       // put it in the source mat.  If there is an error notify the
       // output.
+      // grab robot yaw at frame grab
+      units::angle::degree_t gyroYawHeadingLocal = gyroYawHeading;
       if (cvSink.GrabFrame(mat) == 0) {
         // Send the output the error.
         outputStream.NotifyError(cvSink.GetError());
@@ -150,7 +161,7 @@ class Robot : public frc::TimedRobot {
       tags.clear();
 
 
-      faceAprilTag = 0;
+      //desiredYaw = 0; // if this is enabled, robot will not remember tag location if it leaves the field of view
       for (const frc::AprilTagDetection* detection : detections) {
         // remember we saw this tag
         tags.push_back(detection->GetId());
@@ -197,12 +208,12 @@ class Robot : public frc::TimedRobot {
         
         // look for speaker tag (11)
         double tagDist = (g_size.width/2)-c.x; //tag distance from center
+        double tagDistDeg = tagDist / 10; // tag distance in degrees, roughly
         if (7 == tagId) {
-          faceAprilTag = tagDist / (g_size.width / 2);
-          printf("motor turn value: %f\n", faceAprilTag);
-          if (faceAprilTag > 0.7 || faceAprilTag < -0.7) faceAprilTag /= 2;
-          if (faceAprilTag < 0.25 || faceAprilTag > -0.25) faceAprilTag *= 2;
           
+          units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagDistDeg; // calculates fixed tag location relative to initial gyro rotation
+          //printf("april tag bearing: %f\n", tagBearing);
+          desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
         }
 
         // determine pose
@@ -322,10 +333,42 @@ class Robot : public frc::TimedRobot {
 					      // follow the change in direction
 					      // of the master?
 #endif
+    gyro.Calibrate();
+
   }
 
+  void TestPeriodic() override {
+    int bmv1 = 0;
+    if (m_driverController.GetXButton() ) {
+      bmv1 = 6;
+    } else if (m_driverController.GetYButton() ) {
+      bmv1 = 12;
+    } else {
+      bmv1 = 0;
+    }
+    //Increases voltage depending on left trigger depth
+    motor8.SetVoltage(units::volt_t{ bmv1 });
+    motor11.SetVoltage(units::volt_t{ 12.0*m_driverController.GetRightTriggerAxis() });
+    motor16.SetVoltage(units::volt_t{ 12.0*m_driverController.GetRightTriggerAxis() });
+    motor10.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });
+
+  }
 
   void TeleopPeriodic() override {
+    gyroYawHeading = gyro.GetAngle();
+    gyroYawRate = gyro.GetRate();
+    double dEventualYaw = (double) gyroYawHeading + (0.5 / 600.0) * (double) gyroYawRate * std::abs((double) gyroYawRate); // accounts for overshooting
+
+    // converts degrees to turn to a value between -1 and 1 for use in arcade drive
+    faceAprilTag = ((double) dEventualYaw - desiredYaw) * 1.0/10.0;
+    faceAprilTag = std::max( -1.0, faceAprilTag );
+    faceAprilTag = std::min( 1.0, faceAprilTag );
+    
+
+    //printf("robot yaw %f\n", gyroYawHeading);
+    //printf("yaw rate: %f\n", gyroYawRate);
+
+
 #ifdef JOYSTICK
     // Drive with arcade style
     m_robotDrive.ArcadeDrive(-m_stick.GetY(), -m_stick.GetX());
@@ -337,7 +380,7 @@ class Robot : public frc::TimedRobot {
     
     if (m_driverController.GetAButton()) {
       m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
-                              faceAprilTag);
+                              -faceAprilTag);
     } else {
       m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
                               -m_driverController.GetRightX());
