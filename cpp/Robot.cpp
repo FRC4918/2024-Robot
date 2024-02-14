@@ -57,10 +57,10 @@
  * with split arcade steering and an Xbox controller.
  */
 
-static double faceAprilTag;
 static double desiredYaw;
-static units::angle::degree_t gyroYawHeading;
-static units::angular_velocity::degrees_per_second_t gyroYawRate;
+static double moveToAprilTag;
+static units::angle::degree_t gyroYawHeading; //robot yaw (degrees)
+static units::angular_velocity::degrees_per_second_t gyroYawRate; //robot rotate rate (degrees/second)
 
 class Robot : public frc::TimedRobot {
 #ifdef SPARKMAXDRIVE
@@ -162,6 +162,8 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
 
       //desiredYaw = 0; // if this is enabled, robot will not remember tag location if it leaves the field of view
+      moveToAprilTag = 0;
+
       for (const frc::AprilTagDetection* detection : detections) {
         // remember we saw this tag
         tags.push_back(detection->GetId());
@@ -205,16 +207,6 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
         putText(mat, std::to_string(tagId),
                 cv::Point(c.x + ll, c.y), cv::FONT_HERSHEY_SIMPLEX, 1,
                 crossColor, 3);
-        
-        // look for speaker tag (11)
-        double tagDist = (g_size.width/2)-c.x; //tag distance from center
-        double tagDistDeg = tagDist / 10; // tag distance in degrees, roughly
-        if (7 == tagId) {
-          
-          units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagDistDeg; // calculates fixed tag location relative to initial gyro rotation
-          //printf("april tag bearing: %f\n", tagBearing);
-          desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
-        }
 
         // determine pose
         frc::Transform3d pose = estimator.Estimate(*detection);
@@ -229,7 +221,31 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
                    rotation.X().value(),
                    rotation.Y().value(),
                    rotation.Z().value() }});
+
+
+         // look for speaker tag (11)
+        double tagRotDist = (g_size.width/2)-c.x; //tag distance from center
+        double tagRotDistDeg = tagRotDist / 10; // tag distance in degrees, roughly
+        units::length::meter_t tagDist = pose.Z(); //robot distance from tag
+
+        double desiredDist;
+        if (7 == tagId) {
+          desiredDist = 2.572; // distance we want to be from april tag
+          
+          units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+          //printf("april tag bearing: %f\n", tagBearing);
+          desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+
+
+          //tag distance (z axis)
+          //printf("tag distance: %f\n", tagDist.value());
+          double moveRate = 1.5*1.5;
+          if (moveToAprilTag < 0) moveRate = -moveRate;
+          double dEventualDist = (double) tagDist + (0.5 / 600.0) * moveRate; // accounts for overshooting  :( broken
+          moveToAprilTag =  dEventualDist - desiredDist;
+        }
       }
+      
 
       // put list of tags onto NT
       pubTags.Set(tags);
@@ -355,8 +371,11 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
   }
 
   void TeleopPeriodic() override {
+    double faceAprilTag;
     gyroYawHeading = gyro.GetAngle();
     gyroYawRate = gyro.GetRate();
+    //int realGyroYawHeading = (int) gyroYawHeading % 180;
+
     double dEventualYaw = (double) gyroYawHeading + (0.5 / 600.0) * (double) gyroYawRate * std::abs((double) gyroYawRate); // accounts for overshooting
 
     // converts degrees to turn to a value between -1 and 1 for use in arcade drive
@@ -365,8 +384,10 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     faceAprilTag = std::min( 1.0, faceAprilTag );
     
 
-    //printf("robot yaw %f\n", gyroYawHeading);
-    //printf("yaw rate: %f\n", gyroYawRate);
+    moveToAprilTag = std::max( -1.0, moveToAprilTag );
+    moveToAprilTag = std::min( 1.0, moveToAprilTag );
+    
+
 
 
 #ifdef JOYSTICK
@@ -377,9 +398,15 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     // That means that the Y axis of the left stick moves forward
     // and backward, and the X of the right stick turns left and right.
  
-    
+
+    //Handle Movement
     if (m_driverController.GetAButton()) {
+      //point to tag
       m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
+                              -faceAprilTag);
+    } else if (m_driverController.GetBButton()) {
+      //point and move to tag
+      m_robotDrive.ArcadeDrive(moveToAprilTag,
                               -faceAprilTag);
     } else {
       m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
