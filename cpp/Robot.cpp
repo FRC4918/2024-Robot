@@ -81,6 +81,7 @@ class Robot : public frc::TimedRobot {
       [&](double output) { m_LeftDriveMotor.Set(output); },
       [&](double output) { m_RightDriveMotor.Set(output); }};
 #ifdef JOYSTICK
+        frc::CameraServer::PutVideo("Detected", 640, 480);
   frc::Joystick m_stick{0};
 #else
   frc::XboxController m_driverController{0};
@@ -111,15 +112,19 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
     // Get the USB camera from CameraServer
     cs::UsbCamera camera = frc::CameraServer::StartAutomaticCapture();
+
     // Set the resolution
     camera.SetResolution(640, 480);
-    //camera.SetResolution(320, 240);
 
     // Get a CvSink. This will capture Mats from the Camera
     cs::CvSink cvSink = frc::CameraServer::GetVideo();
     // Setup a CvSource. This will send images back to the Dashboard
     cs::CvSource outputStream =
         frc::CameraServer::PutVideo("Detected", 640, 480);
+
+    //no worky
+    // cs::UsbCamera cameraBack = frc::CameraServer::StartAutomaticCapture();
+    // cameraBack.SetResolution(640, 480);
 
     // Mats are very memory expensive. Lets reuse this Mat.
     cv::Mat mat;
@@ -240,9 +245,9 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
           //tag distance (z axis)
           //printf("tag distance: %f\n", tagDist.value());
           double moveRate = 1.5*1.5;
-          if (moveToAprilTag < 0) moveRate = -moveRate;
-          double dEventualDist = (double) tagDist + (0.5 / 600.0) * moveRate; // accounts for overshooting  :( broken
-          moveToAprilTag =  dEventualDist - desiredDist;
+          //if (moveToAprilTag < 0) moveRate = -moveRate;
+          //double dEventualDist = (double) tagDist + (0.5 / 600.0) * moveRate; // accounts for overshooting  :( broken
+          moveToAprilTag = (double) tagDist - desiredDist;
         }
       }
       
@@ -378,8 +383,13 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
     double dEventualYaw = (double) gyroYawHeading + (0.5 / 600.0) * (double) gyroYawRate * std::abs((double) gyroYawRate); // accounts for overshooting
 
+    //find the shortest degrees to face tag
+    int degreesToTurn = (int) ((double) dEventualYaw - desiredYaw) % 360;
+    if (degreesToTurn > 180) degreesToTurn -= 360;
+    if (degreesToTurn < -180) degreesToTurn += 360;
+
     // converts degrees to turn to a value between -1 and 1 for use in arcade drive
-    faceAprilTag = ((double) dEventualYaw - desiredYaw) * 1.0/10.0;
+    faceAprilTag = degreesToTurn * 1.0/10.0;
     faceAprilTag = std::max( -1.0, faceAprilTag );
     faceAprilTag = std::min( 1.0, faceAprilTag );
     
