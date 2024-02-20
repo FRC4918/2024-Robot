@@ -235,7 +235,7 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
         double desiredDist;
         if (7 == tagId) {
-          desiredDist = 2.572; // distance we want to be from april tag
+          desiredDist = 4.572; // distance we want to be from april tag
           
           units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
           //printf("april tag bearing: %f\n", tagBearing);
