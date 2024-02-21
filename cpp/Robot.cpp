@@ -62,6 +62,22 @@ static double moveToAprilTag;
 static units::angle::degree_t gyroYawHeading; //robot yaw (degrees)
 static units::angular_velocity::degrees_per_second_t gyroYawRate; //robot rotate rate (degrees/second)
 
+//video jargon
+
+cs::UsbCamera camera1;
+cs::UsbCamera camera2;
+static cs::CvSink cvSink;
+
+static const double camera_update = 0.25;
+
+//tag jargon
+
+//timed
+
+static double current_time;
+static double last_time = 0.0;
+
+
 class Robot : public frc::TimedRobot {
 #ifdef SPARKMAXDRIVE
   frc::PWMSparkMax m_LeftDriveMotor{     0 };
@@ -111,20 +127,20 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     frc::AprilTagPoseEstimator estimator(poseEstConfig);
 
     // Get the USB camera from CameraServer
-    cs::UsbCamera camera = frc::CameraServer::StartAutomaticCapture();
+    camera1 = frc::CameraServer::StartAutomaticCapture(0);
+    camera2 = frc::CameraServer::StartAutomaticCapture(1);
 
     // Set the resolution
-    camera.SetResolution(640, 480);
+    camera1.SetResolution(640, 480);
+    camera2.SetResolution(640, 480);
 
     // Get a CvSink. This will capture Mats from the Camera
-    cs::CvSink cvSink = frc::CameraServer::GetVideo();
+    cvSink = frc::CameraServer::GetVideo();
     // Setup a CvSource. This will send images back to the Dashboard
     cs::CvSource outputStream =
         frc::CameraServer::PutVideo("Detected", 640, 480);
-
-    //no worky
-    // cs::UsbCamera cameraBack = frc::CameraServer::StartAutomaticCapture();
-    // cameraBack.SetResolution(640, 480);
+    
+    cvSink.SetSource(camera1);
 
     // Mats are very memory expensive. Lets reuse this Mat.
     cv::Mat mat;
@@ -234,20 +250,65 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
         units::length::meter_t tagDist = pose.Z(); //robot distance from tag
 
         double desiredDist;
-        if (7 == tagId) {
-          desiredDist = 4.572; // distance we want to be from april tag
-          
-          units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-          //printf("april tag bearing: %f\n", tagBearing);
-          desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+
+        switch (tagId) {
+          //SPEAKERS
+          case 4:
+          case 7: {
+            desiredDist = 4.572; // distance we want to be from april tag
+            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            //printf("april tag bearing: %f\n", tagBearing);
+            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
 
 
-          //tag distance (z axis)
-          //printf("tag distance: %f\n", tagDist.value());
-          double moveRate = 1.5*1.5;
-          //if (moveToAprilTag < 0) moveRate = -moveRate;
-          //double dEventualDist = (double) tagDist + (0.5 / 600.0) * moveRate; // accounts for overshooting  :( broken
-          moveToAprilTag = (double) tagDist - desiredDist;
+            //tag distance (z axis)
+            //printf("tag distance: %f\n", tagDist.value());
+            double moveRate = 1.5*1.5;
+            //if (moveToAprilTag < 0) moveRate = -moveRate;
+            //double dEventualDist = (double) tagDist + (0.5 / 600.0) * moveRate; // accounts for overshooting  :( broken
+            moveToAprilTag = (double) tagDist - desiredDist;
+            break;
+          }
+
+          //AMPS
+          case 6:
+          case 5: {
+            desiredDist = 1.0; // distance we want to be from april tag
+            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            //tag distance (z axis)
+            moveToAprilTag = (double) tagDist - desiredDist;
+            break;
+          }
+
+          //SOURCES
+          case 10:
+          case 1: {
+            desiredDist = 1.0; // distance we want to be from april tag
+            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            //tag distance (z axis)
+            moveToAprilTag = (double) tagDist - desiredDist;
+            break;
+          }
+
+          //STAGES
+          case 11:
+          case 12:
+          case 13:
+          case 14:
+          case 15:
+          case 16: {
+            desiredDist = 1.5; // distance we want to be from april tag
+            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            //tag distance (z axis)
+            moveToAprilTag = (double) tagDist - desiredDist;
+            break;
+          }
+          default: {
+
+          }
         }
       }
       
@@ -417,12 +478,42 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     } else if (m_driverController.GetBButton()) {
       //point and move to tag
       m_robotDrive.ArcadeDrive(moveToAprilTag,
-                              -faceAprilTag);
+                                 -faceAprilTag);
+      
     } else {
       m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
                               -m_driverController.GetRightX());
     }
+
+    if (m_driverController.GetYButtonPressed()) {
+      //test();
+      //printf("Swiched Camera Output\n");
+      if (cvSink.GetSource() == camera1)
+        cvSink.SetSource(camera2);
+      else
+        cvSink.SetSource(camera1);
+      
+        
+
+      
+    }
 #endif
+  }
+
+  void AutonomousInit() override {
+    RobotInit();
+    last_time = (double) frc::GetTime();
+  }
+  void AutonomousPeriodic() override {
+    current_time = (double) frc::GetTime();
+
+    if (current_time > last_time + 0 && current_time < last_time + 2.5)
+      m_robotDrive.ArcadeDrive(0.5, 0);
+    if (current_time > last_time + 3 && current_time < last_time + 3.25)
+      m_robotDrive.ArcadeDrive(0, .6);
+    if (current_time > last_time + 3.5 && current_time < last_time + 5.5)
+      m_robotDrive.ArcadeDrive(0.5, 0);
+    return;
   }
 };
 
@@ -431,4 +522,6 @@ int main() {
   return frc::StartRobot<Robot>();
 }
 #endif
+
+
 
