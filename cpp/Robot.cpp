@@ -463,7 +463,8 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
 #ifdef JOYSTICK
     // Drive with arcade style
-    m_robotDrive.ArcadeDrive(-m_stick.GetY(), -m_stick.GetX());
+    //Bjorn Thomas - This line below is supposed to be disable but undisabled it im sorry 
+    //m_robotDrive.ArcadeDrive(-m_stick.GetY(), -m_stick.GetX());
 #else
     // Drive with split arcade style
     // That means that the Y axis of the left stick moves forward
@@ -501,18 +502,31 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
   }
 
   void AutonomousInit() override {
-    RobotInit();
+    //Camera does not work when robotInit is called twice
+    //RobotInit();
     last_time = (double) frc::GetTime();
   }
+  //CAMERAS DO NOT WORK WHEN AUTONOMOUS IS UN-COMMENTED
   void AutonomousPeriodic() override {
     current_time = (double) frc::GetTime();
 
     if (current_time > last_time + 0 && current_time < last_time + 2.5)
       m_robotDrive.ArcadeDrive(0.5, 0);
     if (current_time > last_time + 3 && current_time < last_time + 3.25)
-      m_robotDrive.ArcadeDrive(0, .6);
+      m_robotDrive.ArcadeDrive(0, .75);
     if (current_time > last_time + 3.5 && current_time < last_time + 5.5)
       m_robotDrive.ArcadeDrive(0.5, 0);
+  //BJORNS SPINNY DANCE (DELETE THIS)
+    if (current_time > last_time + 4.2 && current_time < last_time + 6.3)
+      m_robotDrive.ArcadeDrive(0.5, 0);
+    if (current_time > last_time + 5.7 && current_time < last_time + 7.8)
+      m_robotDrive.ArcadeDrive(0, .85);
+    if (current_time > last_time + 5.9 && current_time < last_time + 9.0)
+      m_robotDrive.ArcadeDrive(0.5, 0);
+    if (current_time > last_time + 7.2 && current_time < last_time + 9.4)
+      m_robotDrive.ArcadeDrive(-0.5, 0);
+    if (current_time > last_time + 7.4 && current_time < last_time + 9.8)
+      m_robotDrive.ArcadeDrive(0, .85);
     return;
   }
 };
