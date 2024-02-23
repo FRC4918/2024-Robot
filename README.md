@@ -7,9 +7,10 @@ C/C++ code for FRC Team 4918's Robot for competition year 2024.
 - Note detection
   - Color
   - Shape
+  - Get distance based on image
 - Fix "pixel blending" so the April tag can be seen from further away
 - Fix overshooting when moving to April tag (need encoders)
-- Lift on to chain
+- Hook code
 - Clean up code for other April tags
 - Tag lock/unlock button
 
