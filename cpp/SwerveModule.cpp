@@ -113,6 +113,7 @@ SwerveModule::SwerveModule(const int driveMotorCanID,
 {
 
    // Initialize both CAN Spark-driven NEO motors.
+   
    MotorInitSpark(m_driveMotor);
    MotorInitSpark(m_turningMotor);
    m_turningMotor.SetSmartCurrentLimit(10, 5, 5000);

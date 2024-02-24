@@ -2,23 +2,10 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
+#include <frc/MathUtil.h>
 #include <frc/TimedRobot.h>
-
-// Define JOYSTICK if this is for a joystick, rather than an XBox controller
-// #define JOYSTICK 1
-//
-// Define SPARKMAXDRIVE if the drive motors will be controlled by SparkMaxes;
-// if undefined they will be assumed to be TalonSRX controllers
-// #define SPARKMAXDRIVE
-
-#ifdef JOYSTICK
-#include <frc/Joystick.h>
-#else
 #include <frc/XboxController.h>
-#endif
-
-#include <frc/drive/DifferentialDrive.h>
-#include <frc/motorcontrol/PWMSparkMax.h>
+#include <frc/filter/SlewRateLimiter.h>
 
 // The following include files, and the rest of the AprilTags detection code,
 // are from the example program here:
@@ -47,125 +34,26 @@
 #include <units/angle.h>
 #include <units/length.h>
 
-#include "rev/CANSparkMax.h"
-#include "ctre/Phoenix.h"
 #include <frc/ADIS16470_IMU.h>
 
 #include "Drivetrain.h"
 
 
-/* This is the robot code, with swerve, April tag, and note detection
- *
- */
-
 //April Tag Variables
 static double desiredYaw;
 static double moveToAprilTag;
-static units::angle::degree_t gyroYawHeading; //robot yaw (degrees)
-static units::angular_velocity::degrees_per_second_t gyroYawRate; //robot rotate rate (degrees/second)
+//static units::angle::degree_t gyroYawHeading; //robot yaw (degrees)
+//static units::angular_velocity::degrees_per_second_t gyroYawRate; //robot rotate rate (degrees/second)
 
 //Camera Variables
 cs::UsbCamera camera1;
 cs::UsbCamera camera2;
 static cs::CvSink cvSink;
 
-//Note Detection
-cv::Scalar LOWER_ORANGE_HSV = cv::Scalar(3, 80, 80);
-cv::Scalar UPPER_ORANGE_HSV = cv::Scalar(6, 255, 255);
-// The minimum contour area to detect a note
-const double MINIMUM_CONTOUR_AREA = 400;
-// The threshold for a contour to be considered a disk
-const double CONTOUR_DISK_THRESHOLD = 0.9;
-
-//Timed
-static double current_time;
-static double last_time = 0.0;
-
-
-
-cv::RotatedRect findLargestOrangeContour(const cv::Mat& hsvImage) {
-  // Threshold the HSV image to get only orange colors
-  cv::Mat mask;
-  cv::inRange(hsvImage, LOWER_ORANGE_HSV, UPPER_ORANGE_HSV, mask);
-  // Find contours in the mask
-  std::vector<std::vector<cv::Point>> contours;
-  cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-  // Find the largest contour
-  double maxArea = 0;
-  int maxAreaIdx = -1;
-  for (size_t i = 0; i < contours.size(); ++i) {
-      double area = cv::contourArea(contours[i]);
-      if (area > maxArea) {
-          maxArea = area;
-          maxAreaIdx = i;
-      }
-  }
-
-  if (maxAreaIdx >= 0)
-      return cv::minAreaRect(contours[maxAreaIdx]);
-  else
-      return cv::RotatedRect();
-}
-
-bool contourIsNote(const cv::RotatedRect& contour) {
-  // Get the contour points
-  std::vector<cv::Point2f> contourPoints(4);
-  contour.points(contourPoints.data());
-
-  // Make sure the contour isn't some random small spec of noise
-  if (contour.size.area() < MINIMUM_CONTOUR_AREA)
-      return false;
-
-  // Get the smallest convex polygon thatcontour.points(contourPoints.data() can fit around the contour
-  std::vector<cv::Point2f> hull;
-  cv::convexHull(contourPoints, hull);
-  
-
-  // ISSUE WITH cv::fitEllipse(hull); hull does not have enough points (needed 5, provided 4)
-  // Fits an ellipse to the hull, and gets its area
-  cv::RotatedRect ellipse = cv::fitEllipse(hull);
-  //double bestFitEllipseArea = CV_PI * (ellipse.size.width / 2) * (ellipse.size.height / 2);
-  // Returns True if the hull is almost as big as the ellipse
-  //return contour.size.area() / bestFitEllipseArea > CONTOUR_DISK_THRESHOLD;
-  return true;
-}
-
-
-
-
 class Robot : public frc::TimedRobot {
 
-
-#ifdef SPARKMAXDRIVE
-  frc::PWMSparkMax m_LeftDriveMotor{     0 };
-  frc::PWMSparkMax m_RightDriveMotor{    1 };
-#else
-  WPI_TalonSRX m_LeftDriveMotor{        3 };
-  WPI_VictorSPX m_LeftDriveMotorRear{  11 };
-  WPI_TalonSRX m_RightDriveMotor{      12 };
-  WPI_VictorSPX m_RightDriveMotorRear{  4 };
-#endif
-  rev::CANSparkMax motor8{   8, rev::CANSparkMax::MotorType::kBrushed  };
-  rev::CANSparkMax motor10{ 10, rev::CANSparkMax::MotorType::kBrushed  };
-  rev::CANSparkMax motor11{ 11, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax motor16{ 16, rev::CANSparkMax::MotorType::kBrushless};
-
-  
-  frc::DifferentialDrive m_robotDrive{
-      [&](double output) { m_LeftDriveMotor.Set(output); },
-      [&](double output) { m_RightDriveMotor.Set(output); }};
-
-
-#ifdef JOYSTICK
-        frc::CameraServer::PutVideo("Detected", 640, 480);
-  frc::Joystick m_stick{0};
-#else
-  frc::XboxController m_driverController{0};
-#endif
-
-frc::ADIS16470_IMU gyro;                  //MXP port gyro
-
+//Gyro
+//frc::ADIS16470_IMU gyro;
 
    /*
     * The VisionThread() function demonstrates the detection of AprilTags.
@@ -228,26 +116,14 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
       // put it in the source mat.  If there is an error notify the
       // output.
       // grab robot yaw at frame grab
-      units::angle::degree_t gyroYawHeadingLocal = gyroYawHeading;
+
+      //units::angle::degree_t gyroYawHeadingLocal = gyroYawHeading;
       if (cvSink.GrabFrame(mat) == 0) {
         // Send the output the error.
         outputStream.NotifyError(cvSink.GetError());
         // skip the rest of the current iteration
         continue;
       }
-
-      // Convert mat to HSL to look for notes
-      
-      cv::cvtColor(mat, hsvMat, cv::COLOR_BGR2HSV);
-      cv::RotatedRect contour = findLargestOrangeContour(hsvMat);
-      if (contour.size.area() > 0 && contourIsNote(contour)) {
-        printf("i see note\n");
-        cv::line(mat, contour.center, contour.center*2, cv::Scalar(255, 0, 255), 2);
-        printf("center of note: %f\n", (double) contour.center.x);
-        //cv::ellipse(mat, contour., cv::Scalar(255, 0, 255), 2);
-      }
-
-
 
       cv::cvtColor(mat, grayMat, cv::COLOR_BGR2GRAY);
 
@@ -333,9 +209,9 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
           case 4:
           case 7: {
             desiredDist = 4.572; // distance we want to be from april tag
-            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            //units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
             //printf("april tag bearing: %f\n", tagBearing);
-            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            //desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
 
 
             //tag distance (z axis)
@@ -351,8 +227,8 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
           case 6:
           case 5: {
             desiredDist = 1.0; // distance we want to be from april tag
-            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            //units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            //desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
             //tag distance (z axis)
             moveToAprilTag = (double) tagDist - desiredDist;
             break;
@@ -362,8 +238,8 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
           case 10:
           case 1: {
             desiredDist = 1.0; // distance we want to be from april tag
-            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            //units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            //desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
             //tag distance (z axis)
             moveToAprilTag = (double) tagDist - desiredDist;
             break;
@@ -377,8 +253,8 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
           case 15:
           case 16: {
             desiredDist = 1.5; // distance we want to be from april tag
-            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            //units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            //desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
             //tag distance (z axis)
             moveToAprilTag = (double) tagDist - desiredDist;
             break;
@@ -397,206 +273,56 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
       outputStream.PutFrame(mat);
     }
   }
-  
-  void MotorInitTalon( WPI_TalonSRX &m_motor )
-  {
-    m_motor.ConfigFactoryDefault( 10 );
-    m_motor.SetInverted( false );
-                                             /* Set the peak and nominal outputs */
-    m_motor.ConfigNominalOutputForward( 0, 10 );
-    m_motor.ConfigNominalOutputReverse( 0, 10 );
-    m_motor.ConfigPeakOutputForward(    1, 10 );
-    m_motor.ConfigPeakOutputReverse(   -1, 10 );
-
-            /* Set limits to how much current will be sent through the motor */
-    m_motor.ConfigPeakCurrentDuration(1);  // 1000 milliseconds (for 60 Amps)
-#ifdef SAFETY_LIMITS
-    m_motor.ConfigPeakCurrentLimit(10);       // limit motor power severely
-    m_motor.ConfigContinuousCurrentLimit(10); // to 10 Amps
-#else
-    m_motor.ConfigPeakCurrentLimit(60);          // 60 works here for miniCIMs,
-                                                 // or maybe 40 Amps is enough,
-                                                 // but we reduce to 10, 1, 10
-    m_motor.ConfigContinuousCurrentLimit(60);    // for safety while debugging
-#endif
-    m_motor.EnableCurrentLimit(true);
-
-                                          // Config 100% motor output to 12.0V
-    m_motor.ConfigVoltageCompSaturation( 12.0 );
-    m_motor.EnableVoltageCompensation( false );
-
-    m_motor.SetNeutralMode( NeutralMode::Brake );
-
-  }      // MotorInitTalon()
-
-  void MotorInitVictor( WPI_VictorSPX &m_motor )
-  {
-    m_motor.ConfigFactoryDefault( 10 );
-    m_motor.SetInverted( false );
-                                             /* Set the peak and nominal outputs */
-    m_motor.ConfigNominalOutputForward( 0, 10 );
-    m_motor.ConfigNominalOutputReverse( 0, 10 );
-    m_motor.ConfigPeakOutputForward(    1, 10 );
-    m_motor.ConfigPeakOutputReverse(   -1, 10 );
-
-            /* Set limits to how much current will be sent through the motor */
-    //m_motor.ConfigPeakCurrentDuration(1);  // 1000 milliseconds (for 60 Amps)
-#ifdef SAFETY_LIMITS
-    m_motor.ConfigPeakCurrentLimit(10);       // limit motor power severely
-    m_motor.ConfigContinuousCurrentLimit(10); // to 10 Amps
-#else
-    //m_motor.ConfigPeakCurrentLimit(60);          // 60 works here for miniCIMs,
-                                                 // or maybe 40 Amps is enough,
-                                                 // but we reduce to 10, 1, 10
-    //m_motor.ConfigContinuousCurrentLimit(60);    // for safety while debugging
-#endif
-    //m_motor.EnableCurrentLimit(true);
-
-                                          // Config 100% motor output to 12.0V
-    m_motor.ConfigVoltageCompSaturation( 12.0 );
-    m_motor.EnableVoltageCompensation( false );
-
-    m_motor.SetNeutralMode( NeutralMode::Brake );
-
-  }      // MotorInitVictor()
 
 
  public:
-  Robot() {
-    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_LeftDriveMotor);
-    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_RightDriveMotor);
-  }
-
-  void RobotInit() override {
-
-    // We need to run our vision program in a separate thread.
-    // If not run separately (in parallel), our robot program will never
-    // get to execute.
-    std::thread visionThread( VisionThread );
-    visionThread.detach();
-
-#ifndef SPARKMAXDRIVE
-    
-    MotorInitTalon( m_LeftDriveMotor       );
-    MotorInitVictor( m_LeftDriveMotorRear  );
-    MotorInitTalon( m_RightDriveMotor      );
-    MotorInitVictor( m_RightDriveMotorRear );
-    
-
-    m_LeftDriveMotorRear.Follow(  m_LeftDriveMotor  );
-    m_RightDriveMotorRear.Follow( m_RightDriveMotor );
-  
-#endif
-
-    // We need to invert one side of the drivetrain so that positive voltages
-    // result in both sides moving forward. Depending on how your robot's
-    // gearbox is constructed, you might have to invert the left side instead.
-    /* m_RightDriveMotor.SetInverted(true); */
-#ifndef SPARKMAXDRIVE
-     m_RightDriveMotorRear.SetInverted(true);  // is this necessary, or does it
-					      // follow the change in direction
-					      // of the master? 
-#endif
-    gyro.Calibrate();
-
-  }
-
-  void TestPeriodic() override {
-    int bmv1 = 0;
-    if (m_driverController.GetXButton() ) {
-      bmv1 = 6;
-    } else if (m_driverController.GetYButton() ) {
-      bmv1 = 12;
-    } else {
-      bmv1 = 0;
-    }
-    //Increases voltage depending on left trigger depth
-    
-    motor8.SetVoltage(units::volt_t{ bmv1 });
-    motor11.SetVoltage(units::volt_t{ 12.0*m_driverController.GetRightTriggerAxis() });
-    motor16.SetVoltage(units::volt_t{ 12.0*m_driverController.GetRightTriggerAxis() });
-    motor10.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });
-
-  }
-
-  void TeleopPeriodic() override {
-    double faceAprilTag;
-    gyroYawHeading = gyro.GetAngle();
-    gyroYawRate = gyro.GetRate();
-    //int realGyroYawHeading = (int) gyroYawHeading % 180;
-
-    double dEventualYaw = (double) gyroYawHeading + (0.5 / 600.0) * (double) gyroYawRate * std::abs((double) gyroYawRate); // accounts for overshooting
-
-    //find the shortest degrees to face tag
-    int degreesToTurn = (int) ((double) dEventualYaw - desiredYaw) % 360;
-    if (degreesToTurn > 180) degreesToTurn -= 360;
-    if (degreesToTurn < -180) degreesToTurn += 360;
-
-    // converts degrees to turn to a value between -1 and 1 for use in arcade drive
-    faceAprilTag = degreesToTurn * 1.0/10.0;
-    faceAprilTag = std::max( -1.0, faceAprilTag );
-    faceAprilTag = std::min( 1.0, faceAprilTag );
-    
-
-    moveToAprilTag = std::max( -1.0, moveToAprilTag );
-    moveToAprilTag = std::min( 1.0, moveToAprilTag );
-    
-
-
-
-#ifdef JOYSTICK
-    // Drive with arcade style
-    //Bjorn Thomas - This line below is supposed to be disable but undisabled it im sorry 
-    m_robotDrive.ArcadeDrive(-m_stick.GetY(), -m_stick.GetX());
-#else
-    // Drive with split arcade style
-    // That means that the Y axis of the left stick moves forward
-    // and backward, and the X of the right stick turns left and right.
- 
-
-    //Handle Movement
-    if (m_driverController.GetAButton()) {
-      //point to tag
-      m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
-                              -faceAprilTag);
-    } else if (m_driverController.GetBButton()) {
-      //point and move to tag
-      m_robotDrive.ArcadeDrive(moveToAprilTag,
-                                 -faceAprilTag);
-      
-    } else {
-      m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
-                              -m_driverController.GetRightX());
-    }
-
-    //switch camera that's used in code
-    if (m_driverController.GetYButtonPressed()) {
-      //test();
-      //printf("Swiched Camera Output\n");
-      if (cvSink.GetSource() == camera1)
-        cvSink.SetSource(camera2);
-      else
-        cvSink.SetSource(camera1);
-    }
-#endif
-  }
-
-  void AutonomousInit() override {
-    //Camera does not work when robotInit is called twice
-    //RobotInit();
-    last_time = (double) frc::GetTime();
-  }
-
   void AutonomousPeriodic() override {
-    //Gyro Variables
-    gyroYawHeading = gyro.GetAngle();
-    gyroYawRate = gyro.GetRate();
-
-    current_time = (double) frc::GetTime();
-
-    
-    return;
+    DriveWithJoystick(false);
+    m_swerve.UpdateOdometry();
   }
+
+  void TeleopPeriodic() override { DriveWithJoystick(true); }
+
+ private:
+  frc::XboxController m_controller{0};
+  Drivetrain m_swerve;
+
+  // Slew rate limiters to make joystick inputs more gentle; 1/3 sec from 0
+  // to 1.
+  frc::SlewRateLimiter<units::scalar> m_xspeedLimiter{3 / 1_s};
+  frc::SlewRateLimiter<units::scalar> m_yspeedLimiter{3 / 1_s};
+  frc::SlewRateLimiter<units::scalar> m_rotLimiter{3 / 1_s};
+
+  void DriveWithJoystick(bool fieldRelative) {
+    // Get the x speed. We are inverting this because Xbox controllers return
+    // negative values when we push forward.
+    const auto xSpeed = -m_xspeedLimiter.Calculate(
+                            frc::ApplyDeadband(m_controller.GetLeftY(), 0.02)) *
+                        Drivetrain::kMaxSpeed;
+
+    // Get the y speed or sideways/strafe speed. We are inverting this because
+    // we want a positive value when we pull to the left. Xbox controllers
+    // return positive values when you pull to the right by default.
+    const auto ySpeed = -m_yspeedLimiter.Calculate(
+                            frc::ApplyDeadband(m_controller.GetLeftX(), 0.02)) *
+                        Drivetrain::kMaxSpeed;
+
+    // Get the rate of angular rotation. We are inverting this because we want a
+    // positive value when we pull to the left (remember, CCW is positive in
+    // mathematics). Xbox controllers return positive values when you pull to
+    // the right by default.
+    const auto rot = -m_rotLimiter.Calculate(
+                         frc::ApplyDeadband(m_controller.GetRightX(), 0.02)) *
+                     Drivetrain::kMaxAngularSpeed;
+
+
+    //The line below is not working
+    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod());
+    m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod() > (units::time::second_t) 0);
+    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative);
+  }
+
+
 };
 
 #ifndef RUNNING_FRC_TESTS
@@ -604,6 +330,3 @@ int main() {
   return frc::StartRobot<Robot>();
 }
 #endif
-
-
-
