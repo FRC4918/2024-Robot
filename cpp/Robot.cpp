@@ -172,7 +172,7 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     * The image is acquired from the USB camera, then any detected AprilTags
     * are marked up on the image and sent to the dashboard.
     */
-/*
+
   static void VisionThread() {
 
     frc::AprilTagDetector detector;
@@ -398,7 +398,6 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     }
   }
   
-  */
   void MotorInitTalon( WPI_TalonSRX &m_motor )
   {
     m_motor.ConfigFactoryDefault( 10 );
@@ -464,8 +463,8 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
  public:
   Robot() {
-    //wpi::SendableRegistry::AddChild(&m_robotDrive, &m_LeftDriveMotor);
-    //wpi::SendableRegistry::AddChild(&m_robotDrive, &m_RightDriveMotor);
+    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_LeftDriveMotor);
+    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_RightDriveMotor);
   }
 
   void RobotInit() override {
@@ -473,11 +472,11 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     // We need to run our vision program in a separate thread.
     // If not run separately (in parallel), our robot program will never
     // get to execute.
-    //std::thread visionThread( VisionThread );
-    //visionThread.detach();
+    std::thread visionThread( VisionThread );
+    visionThread.detach();
 
 #ifndef SPARKMAXDRIVE
-    /*
+    
     MotorInitTalon( m_LeftDriveMotor       );
     MotorInitVictor( m_LeftDriveMotorRear  );
     MotorInitTalon( m_RightDriveMotor      );
@@ -486,7 +485,7 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
     m_LeftDriveMotorRear.Follow(  m_LeftDriveMotor  );
     m_RightDriveMotorRear.Follow( m_RightDriveMotor );
-    */
+  
 #endif
 
     // We need to invert one side of the drivetrain so that positive voltages
@@ -494,9 +493,9 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     // gearbox is constructed, you might have to invert the left side instead.
     /* m_RightDriveMotor.SetInverted(true); */
 #ifndef SPARKMAXDRIVE
-    /* m_RightDriveMotorRear.SetInverted(true);  // is this necessary, or does it
+     m_RightDriveMotorRear.SetInverted(true);  // is this necessary, or does it
 					      // follow the change in direction
-					      // of the master? */
+					      // of the master? 
 #endif
     gyro.Calibrate();
 
@@ -513,10 +512,10 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     }
     //Increases voltage depending on left trigger depth
     
-    /*motor8.SetVoltage(units::volt_t{ bmv1 });
+    motor8.SetVoltage(units::volt_t{ bmv1 });
     motor11.SetVoltage(units::volt_t{ 12.0*m_driverController.GetRightTriggerAxis() });
     motor16.SetVoltage(units::volt_t{ 12.0*m_driverController.GetRightTriggerAxis() });
-    motor10.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });*/
+    motor10.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });
 
   }
 
@@ -556,7 +555,7 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
  
 
     //Handle Movement
-    /*if (m_driverController.GetAButton()) {
+    if (m_driverController.GetAButton()) {
       //point to tag
       m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
                               -faceAprilTag);
@@ -568,7 +567,7 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     } else {
       m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
                               -m_driverController.GetRightX());
-    }*/
+    }
 
     //switch camera that's used in code
     if (m_driverController.GetYButtonPressed()) {
