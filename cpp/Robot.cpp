@@ -30,6 +30,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <cameraserver/CameraServer.h>
 #include <fmt/format.h>
@@ -50,35 +51,92 @@
 #include "ctre/Phoenix.h"
 #include <frc/ADIS16470_IMU.h>
 
+#include "Drivetrain.h"
 
-/*
- * This is a demo program showing the use of the DifferentialDrive class.
- * Runs the motors with arcade steering (if JOYSTICK is defined), or
- * with split arcade steering and an Xbox controller.
+
+/* This is the robot code, with swerve, April tag, and note detection
+ *
  */
 
+//April Tag Variables
 static double desiredYaw;
 static double moveToAprilTag;
 static units::angle::degree_t gyroYawHeading; //robot yaw (degrees)
 static units::angular_velocity::degrees_per_second_t gyroYawRate; //robot rotate rate (degrees/second)
 
-//video jargon
-
+//Camera Variables
 cs::UsbCamera camera1;
 cs::UsbCamera camera2;
 static cs::CvSink cvSink;
 
-static const double camera_update = 0.25;
+//Note Detection
+cv::Scalar LOWER_ORANGE_HSV = cv::Scalar(3, 80, 80);
+cv::Scalar UPPER_ORANGE_HSV = cv::Scalar(6, 255, 255);
+// The minimum contour area to detect a note
+const double MINIMUM_CONTOUR_AREA = 400;
+// The threshold for a contour to be considered a disk
+const double CONTOUR_DISK_THRESHOLD = 0.9;
 
-//tag jargon
-
-//timed
-
+//Timed
 static double current_time;
 static double last_time = 0.0;
 
 
+
+cv::RotatedRect findLargestOrangeContour(const cv::Mat& hsvImage) {
+  // Threshold the HSV image to get only orange colors
+  cv::Mat mask;
+  cv::inRange(hsvImage, LOWER_ORANGE_HSV, UPPER_ORANGE_HSV, mask);
+  // Find contours in the mask
+  std::vector<std::vector<cv::Point>> contours;
+  cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+  // Find the largest contour
+  double maxArea = 0;
+  int maxAreaIdx = -1;
+  for (size_t i = 0; i < contours.size(); ++i) {
+      double area = cv::contourArea(contours[i]);
+      if (area > maxArea) {
+          maxArea = area;
+          maxAreaIdx = i;
+      }
+  }
+
+  if (maxAreaIdx >= 0)
+      return cv::minAreaRect(contours[maxAreaIdx]);
+  else
+      return cv::RotatedRect();
+}
+
+bool contourIsNote(const cv::RotatedRect& contour) {
+  // Get the contour points
+  std::vector<cv::Point2f> contourPoints(4);
+  contour.points(contourPoints.data());
+
+  // Make sure the contour isn't some random small spec of noise
+  if (contour.size.area() < MINIMUM_CONTOUR_AREA)
+      return false;
+
+  // Get the smallest convex polygon thatcontour.points(contourPoints.data() can fit around the contour
+  std::vector<cv::Point2f> hull;
+  cv::convexHull(contourPoints, hull);
+  
+
+  // ISSUE WITH cv::fitEllipse(hull); hull does not have enough points (needed 5, provided 4)
+  // Fits an ellipse to the hull, and gets its area
+  cv::RotatedRect ellipse = cv::fitEllipse(hull);
+  //double bestFitEllipseArea = CV_PI * (ellipse.size.width / 2) * (ellipse.size.height / 2);
+  // Returns True if the hull is almost as big as the ellipse
+  //return contour.size.area() / bestFitEllipseArea > CONTOUR_DISK_THRESHOLD;
+  return true;
+}
+
+
+
+
 class Robot : public frc::TimedRobot {
+
+
 #ifdef SPARKMAXDRIVE
   frc::PWMSparkMax m_LeftDriveMotor{     0 };
   frc::PWMSparkMax m_RightDriveMotor{    1 };
@@ -93,9 +151,12 @@ class Robot : public frc::TimedRobot {
   rev::CANSparkMax motor11{ 11, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax motor16{ 16, rev::CANSparkMax::MotorType::kBrushless};
 
+  
   frc::DifferentialDrive m_robotDrive{
       [&](double output) { m_LeftDriveMotor.Set(output); },
       [&](double output) { m_RightDriveMotor.Set(output); }};
+
+
 #ifdef JOYSTICK
         frc::CameraServer::PutVideo("Detected", 640, 480);
   frc::Joystick m_stick{0};
@@ -105,13 +166,15 @@ class Robot : public frc::TimedRobot {
 
 frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
+
    /*
     * The VisionThread() function demonstrates the detection of AprilTags.
     * The image is acquired from the USB camera, then any detected AprilTags
     * are marked up on the image and sent to the dashboard.
     */
-
+/*
   static void VisionThread() {
+
     frc::AprilTagDetector detector;
     // look for tag36h11, correct 3 error bits
     detector.AddFamily("tag36h11", 0);
@@ -145,6 +208,7 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     // Mats are very memory expensive. Lets reuse this Mat.
     cv::Mat mat;
     cv::Mat grayMat;
+    cv::Mat hsvMat;
 
     // Instantiate once
     std::vector<int64_t> tags;
@@ -171,6 +235,19 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
         // skip the rest of the current iteration
         continue;
       }
+
+      // Convert mat to HSL to look for notes
+      
+      cv::cvtColor(mat, hsvMat, cv::COLOR_BGR2HSV);
+      cv::RotatedRect contour = findLargestOrangeContour(hsvMat);
+      if (contour.size.area() > 0 && contourIsNote(contour)) {
+        printf("i see note\n");
+        cv::line(mat, contour.center, contour.center*2, cv::Scalar(255, 0, 255), 2);
+        printf("center of note: %f\n", (double) contour.center.x);
+        //cv::ellipse(mat, contour., cv::Scalar(255, 0, 255), 2);
+      }
+
+
 
       cv::cvtColor(mat, grayMat, cv::COLOR_BGR2GRAY);
 
@@ -320,6 +397,8 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
       outputStream.PutFrame(mat);
     }
   }
+  
+  */
   void MotorInitTalon( WPI_TalonSRX &m_motor )
   {
     m_motor.ConfigFactoryDefault( 10 );
@@ -382,10 +461,11 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
 
   }      // MotorInitVictor()
 
+
  public:
   Robot() {
-    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_LeftDriveMotor);
-    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_RightDriveMotor);
+    //wpi::SendableRegistry::AddChild(&m_robotDrive, &m_LeftDriveMotor);
+    //wpi::SendableRegistry::AddChild(&m_robotDrive, &m_RightDriveMotor);
   }
 
   void RobotInit() override {
@@ -393,27 +473,30 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     // We need to run our vision program in a separate thread.
     // If not run separately (in parallel), our robot program will never
     // get to execute.
-    std::thread visionThread( VisionThread );
-    visionThread.detach();
+    //std::thread visionThread( VisionThread );
+    //visionThread.detach();
 
 #ifndef SPARKMAXDRIVE
+    /*
     MotorInitTalon( m_LeftDriveMotor       );
     MotorInitVictor( m_LeftDriveMotorRear  );
     MotorInitTalon( m_RightDriveMotor      );
     MotorInitVictor( m_RightDriveMotorRear );
+    
 
     m_LeftDriveMotorRear.Follow(  m_LeftDriveMotor  );
     m_RightDriveMotorRear.Follow( m_RightDriveMotor );
+    */
 #endif
 
     // We need to invert one side of the drivetrain so that positive voltages
     // result in both sides moving forward. Depending on how your robot's
     // gearbox is constructed, you might have to invert the left side instead.
-    m_RightDriveMotor.SetInverted(true);
+    /* m_RightDriveMotor.SetInverted(true); */
 #ifndef SPARKMAXDRIVE
-    m_RightDriveMotorRear.SetInverted(true);  // is this necessary, or does it
+    /* m_RightDriveMotorRear.SetInverted(true);  // is this necessary, or does it
 					      // follow the change in direction
-					      // of the master?
+					      // of the master? */
 #endif
     gyro.Calibrate();
 
@@ -429,10 +512,11 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
       bmv1 = 0;
     }
     //Increases voltage depending on left trigger depth
-    motor8.SetVoltage(units::volt_t{ bmv1 });
+    
+    /*motor8.SetVoltage(units::volt_t{ bmv1 });
     motor11.SetVoltage(units::volt_t{ 12.0*m_driverController.GetRightTriggerAxis() });
     motor16.SetVoltage(units::volt_t{ 12.0*m_driverController.GetRightTriggerAxis() });
-    motor10.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });
+    motor10.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });*/
 
   }
 
@@ -464,7 +548,7 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
 #ifdef JOYSTICK
     // Drive with arcade style
     //Bjorn Thomas - This line below is supposed to be disable but undisabled it im sorry 
-    //m_robotDrive.ArcadeDrive(-m_stick.GetY(), -m_stick.GetX());
+    m_robotDrive.ArcadeDrive(-m_stick.GetY(), -m_stick.GetX());
 #else
     // Drive with split arcade style
     // That means that the Y axis of the left stick moves forward
@@ -472,7 +556,7 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
  
 
     //Handle Movement
-    if (m_driverController.GetAButton()) {
+    /*if (m_driverController.GetAButton()) {
       //point to tag
       m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
                               -faceAprilTag);
@@ -484,8 +568,9 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     } else {
       m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
                               -m_driverController.GetRightX());
-    }
+    }*/
 
+    //switch camera that's used in code
     if (m_driverController.GetYButtonPressed()) {
       //test();
       //printf("Swiched Camera Output\n");
@@ -493,10 +578,6 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
         cvSink.SetSource(camera2);
       else
         cvSink.SetSource(camera1);
-      
-        
-
-      
     }
 #endif
   }
@@ -506,27 +587,15 @@ frc::ADIS16470_IMU gyro;                  //MXP port gyro
     //RobotInit();
     last_time = (double) frc::GetTime();
   }
-  //CAMERAS DO NOT WORK WHEN AUTONOMOUS IS UN-COMMENTED
+
   void AutonomousPeriodic() override {
+    //Gyro Variables
+    gyroYawHeading = gyro.GetAngle();
+    gyroYawRate = gyro.GetRate();
+
     current_time = (double) frc::GetTime();
 
-    if (current_time > last_time + 0 && current_time < last_time + 2.5)
-      m_robotDrive.ArcadeDrive(0.5, 0);
-    if (current_time > last_time + 3 && current_time < last_time + 3.25)
-      m_robotDrive.ArcadeDrive(0, .75);
-    if (current_time > last_time + 3.5 && current_time < last_time + 5.5)
-      m_robotDrive.ArcadeDrive(0.5, 0);
-  //BJORNS SPINNY DANCE (DELETE THIS)
-    if (current_time > last_time + 4.2 && current_time < last_time + 6.3)
-      m_robotDrive.ArcadeDrive(0.5, 0);
-    if (current_time > last_time + 5.7 && current_time < last_time + 7.8)
-      m_robotDrive.ArcadeDrive(0, .85);
-    if (current_time > last_time + 5.9 && current_time < last_time + 9.0)
-      m_robotDrive.ArcadeDrive(0.5, 0);
-    if (current_time > last_time + 7.2 && current_time < last_time + 9.4)
-      m_robotDrive.ArcadeDrive(-0.5, 0);
-    if (current_time > last_time + 7.4 && current_time < last_time + 9.8)
-      m_robotDrive.ArcadeDrive(0, .85);
+    
     return;
   }
 };

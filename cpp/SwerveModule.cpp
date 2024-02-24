@@ -34,7 +34,8 @@ void MotorInitSpark(rev::CANSparkMax &m_motor)
     * Configure Spark Max Output direction.
     * Sensor (encoder) direction would be set by
     * m_motorEncoder.SetInverted( true), but that doesn't work with
-    * hall-effect encoders like we have on our Neo drive motors.
+    * hall-effect encoders like we
+    *  have on our Neo drive motors.
     */
    // m_motor.SetInverted( true );  // invert direction of motor itself.
    m_motor.SetInverted(false); // set forward direction of motor.
