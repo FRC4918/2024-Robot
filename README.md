@@ -5,7 +5,6 @@ C/C++ code for FRC Team 4918's Robot for competition year 2024.
 (Ordered by importance)
 - AUTONOMOUS
 - Note detection
-  - Color
   - Shape
   - Get distance based on image
 - Fix "pixel blending" so the April tag can be seen from further away
@@ -19,3 +18,5 @@ C/C++ code for FRC Team 4918's Robot for competition year 2024.
 - Code for other april tags
 - Fix tagdist value
 - Fix camera not working in autonomous
+- Note Detection
+  - Shape
