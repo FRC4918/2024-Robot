@@ -69,7 +69,7 @@ private:
 #else
        // For the 2023 robot, the swerve modules got re-ordered
        // (the front-left and front-right modules got swapped):
-   SwerveModule m_frontLeft{ 20, 18, 1, 304};
+   SwerveModule m_frontLeft{ 8, 18, 1, 304};
    SwerveModule m_frontRight{ 12,  15, 0, 126};
    SwerveModule m_backLeft{  14, 9, 3,  24};
    SwerveModule m_backRight{ 11, 16, 2, 150};
