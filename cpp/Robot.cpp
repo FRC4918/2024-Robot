@@ -37,6 +37,7 @@
 #include "Drivetrain.h"
 #include <rev/CANSparkMax.h>
 #include <ctre/Phoenix.h>
+#include <iostream>
 
 //#define SAFETY_LIMITS 1;
 
@@ -61,6 +62,8 @@ ctre::phoenix::sensors::WPI_PigeonIMU m_gyro{1};
 //SHOOTER SPARKMAX
 rev::CANSparkMax m_LeftShooterMotor{  13, rev::CANSparkMax::MotorType::kBrushless };
 rev::CANSparkMax m_RightShooterMotor{ 10, rev::CANSparkMax::MotorType::kBrushless };
+rev::SparkRelativeEncoder m_LeftShooterMotorEncoder{ m_LeftShooterMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor) };
+rev::SparkRelativeEncoder m_RightShooterMotorEncoder{ m_RightShooterMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor) };
 
 //INTAKE MC
 WPI_TalonSRX m_IntakeMotor{3};
@@ -292,7 +295,53 @@ WPI_VictorSPX m_RightClimberMotor{10};
     }
   }
 
+void MotorInitSpark(rev::CANSparkMax &m_motor)
+   {
+            // Set argument to true to also burn defaults into SparkMax flash.
+      m_motor.RestoreFactoryDefaults(false);
 
+      m_motor.EnableSoftLimit(rev::CANSparkMax::SoftLimitDirection::kForward,
+                              false);
+      m_motor.EnableSoftLimit(rev::CANSparkMax::SoftLimitDirection::kReverse,
+                              false);
+      m_motor.SetInverted(false);           // set forward direction of motor.
+
+           /* Set limits to how much current will be sent through the motor */
+#ifdef SAFETY_LIMITS
+                       //  2 Amps below 5000 RPM, above 5000 RPM it ramps from
+                       //  2 Amps down to  1 Amp  at 5700 RPM
+      m_motor.SetSmartCurrentLimit( 2, 1, 5000);
+#else
+                       // 30 Amps below 5000 RPM, above 5000 RPM it ramps from
+                       // 30 Amps down to 10 Amps at 5700 RPM
+      m_motor.SetSmartCurrentLimit(30, 10, 5000);
+#endif
+      m_motor.GetForwardLimitSwitch(
+                                rev::SparkMaxLimitSwitch::Type::kNormallyOpen)
+                                     .EnableLimitSwitch(false);
+
+                                          // Config 100% motor output to 12.0V
+      m_motor.EnableVoltageCompensation(12.0);
+
+                 // Set ramp rate (how fast motor accelerates or decelerates).
+                 // We may have to try different RampRates here to
+                 // eliminate chattering.
+      m_motor.SetClosedLoopRampRate(0.2);
+      m_motor.SetOpenLoopRampRate(0.2);
+
+      // m_motor.SetIdleMode( rev::CANSparkMax::IdleMode::kCoast );
+      m_motor.SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
+
+      // The following call saves all settings permanently in the SparkMax's
+      // flash memory, so the settings survive even through a brownout.
+      // These statements should be uncommented for at least one deploy-enable
+      // Roborio cycle after any of the above settings change, but they should
+      // be commented out between changes, to keep from using all the
+      // SparkMax's flash-write cycles (because it has a limited number
+      // of flash-write cycles).
+      // m_motor.BurnFlash();
+
+   } // MotorInitSpark()
 
 void MotorInitTalon( WPI_TalonSRX &m_motor )
   {
@@ -367,6 +416,8 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
     std::thread visionThread( VisionThread );
     visionThread.detach();
 
+    MotorInitSpark( m_LeftShooterMotor );
+    MotorInitSpark( m_RightShooterMotor );
     MotorInitVictor( m_LeftClimberMotor);
     MotorInitVictor( m_RightClimberMotor);
     MotorInitTalon( m_IntakeMotor);
@@ -412,6 +463,11 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
     if (m_controller.GetLeftTriggerAxis()) {
       m_LeftShooterMotor.SetVoltage(units::volt_t{  -12.0*m_controller.GetLeftTriggerAxis() });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0*m_controller.GetLeftTriggerAxis() });
+      std::cout << "Lshooter:"
+                << m_LeftShooterMotorEncoder.GetVelocity()
+                << "Rshooter:"
+                << m_RightShooterMotorEncoder.GetVelocity()
+                << std::endl;
     } else {
       m_LeftShooterMotor.SetVoltage(units::volt_t{0});
       m_RightShooterMotor.SetVoltage(units::volt_t{0});
