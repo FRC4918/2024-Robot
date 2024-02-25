@@ -33,10 +33,12 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <units/angle.h>
 #include <units/length.h>
-
 #include <frc/ADIS16470_IMU.h>
-
 #include "Drivetrain.h"
+#include <rev/CANSparkMax.h>
+#include <ctre/Phoenix.h>
+
+//#define SAFETY_LIMITS 1;
 
 
 //April Tag Variables
@@ -53,7 +55,23 @@ static cs::CvSink cvSink;
 class Robot : public frc::TimedRobot {
 
 //Gyro
-//frc::ADIS16470_IMU gyro;
+frc::ADIS16470_IMU gyro;
+ctre::phoenix::sensors::WPI_PigeonIMU m_gyro{1};
+
+//SHOOTER SPARKMAX
+rev::CANSparkMax m_LeftShooterMotor{  13, rev::CANSparkMax::MotorType::kBrushless };
+rev::CANSparkMax m_RightShooterMotor{ 10, rev::CANSparkMax::MotorType::kBrushless };
+
+//INTAKE MC
+WPI_TalonSRX m_IntakeMotor{3};
+
+//PIVOT MC
+//NO HARDSTOP
+WPI_TalonSRX m_ShooterPivotMotor{12};
+
+//CLIMBER MC
+WPI_VictorSPX m_LeftClimberMotor{13};
+WPI_VictorSPX m_RightClimberMotor{10};
 
    /*
     * The VisionThread() function demonstrates the detection of AprilTags.
@@ -275,11 +293,131 @@ class Robot : public frc::TimedRobot {
   }
 
 
+
+void MotorInitTalon( WPI_TalonSRX &m_motor )
+  {
+    m_motor.ConfigFactoryDefault( 10 );
+    m_motor.SetInverted( false );
+                                             /* Set the peak and nominal outputs */
+    m_motor.ConfigNominalOutputForward( 0, 10 );
+    m_motor.ConfigNominalOutputReverse( 0, 10 );
+    m_motor.ConfigPeakOutputForward(    1, 10 );
+    m_motor.ConfigPeakOutputReverse(   -1, 10 );
+
+            /* Set limits to how much current will be sent through the motor */
+    m_motor.ConfigPeakCurrentDuration(1);  // 1000 milliseconds (for 60 Amps)
+#ifdef SAFETY_LIMITS
+    m_motor.ConfigPeakCurrentLimit(10);       // limit motor power severely
+    m_motor.ConfigContinuousCurrentLimit(10); // to 10 Amps
+#else
+    m_motor.ConfigPeakCurrentLimit(60);          // 60 works here for miniCIMs,
+                                                 // or maybe 40 Amps is enough,
+                                                 // but we reduce to 10, 1, 10
+    m_motor.ConfigContinuousCurrentLimit(60);    // for safety while debugging
+#endif
+    m_motor.EnableCurrentLimit(true);
+
+                                          // Config 100% motor output to 12.0V
+    m_motor.ConfigVoltageCompSaturation( 12.0 );
+    m_motor.EnableVoltageCompensation( false );
+
+    m_motor.SetNeutralMode( NeutralMode::Brake );
+
+  }      // MotorInitTalon()
+
+  void MotorInitVictor( WPI_VictorSPX &m_motor )
+  {
+    m_motor.ConfigFactoryDefault( 10 );
+    m_motor.SetInverted( false );
+                                             /* Set the peak and nominal outputs */
+    m_motor.ConfigNominalOutputForward( 0, 10 );
+    m_motor.ConfigNominalOutputReverse( 0, 10 );
+    m_motor.ConfigPeakOutputForward(    1, 10 );
+    m_motor.ConfigPeakOutputReverse(   -1, 10 );
+
+            /* Set limits to how much current will be sent through the motor */
+    //m_motor.ConfigPeakCurrentDuration(1);  // 1000 milliseconds (for 60 Amps)
+#ifdef SAFETY_LIMITS
+  //m_motor.ConfigPeakCurrentLimit(10);       // limit motor power severely
+  //m_motor.ConfigContinuousCurrentLimit(10); // to 10 Amps
+#else
+    //m_motor.ConfigPeakCurrentLimit(60);          // 60 works here for miniCIMs,
+                                                 // or maybe 40 Amps is enough,
+                                                 // but we reduce to 10, 1, 10
+    //m_motor.ConfigContinuousCurrentLimit(60);    // for safety while debugging
+#endif
+    //m_motor.EnableCurrentLimit(true);
+
+                                          // Config 100% motor output to 12.0V
+    m_motor.ConfigVoltageCompSaturation( 12.0 );
+    m_motor.EnableVoltageCompensation( false );
+
+    m_motor.SetNeutralMode( NeutralMode::Brake );
+
+  }      // MotorInitVictor()
+
+
+
  public:
+ void RobotInit() override {
+
+    // We need to run our vision program in a separate thread.
+    // If not run separately (in parallel), our robot program will never
+    // get to execute.
+    std::thread visionThread( VisionThread );
+    visionThread.detach();
+
+    MotorInitVictor( m_LeftClimberMotor);
+    MotorInitVictor( m_RightClimberMotor);
+    MotorInitTalon( m_IntakeMotor);
+    MotorInitTalon( m_ShooterPivotMotor);
+      m_ShooterPivotMotor.ConfigPeakCurrentLimit(1);       // limit motor power severely
+      m_ShooterPivotMotor.ConfigContinuousCurrentLimit(1); // to 10 Amps
+
+#ifndef SPARKMAXDRIVE
+    /*
+    MotorInitTalon( m_LeftDriveMotor       );
+    MotorInitVictor( m_LeftDriveMotorRear  );
+    MotorInitTalon( m_RightDriveMotor      );
+    MotorInitVictor( m_RightDriveMotorRear );
+    
+
+    m_LeftDriveMotorRear.Follow(  m_LeftDriveMotor  );
+    m_RightDriveMotorRear.Follow( m_RightDriveMotor );
+    */
+#endif
+
+#ifndef SPARKMAXDRIVE
+    /* m_RightDriveMotorRear.SetInverted(true);  // is this necessary, or does it
+					      // follow the change in direction
+					      // of the master? */
+#endif
+    gyro.Calibrate();
+
+  }
+
   void AutonomousPeriodic() override {
     DriveWithJoystick(false);
     m_swerve.UpdateOdometry();
   }
+
+  void TestPeriodic() override {
+    if (m_controller.GetRightTriggerAxis()) {
+      //Voltage should be 12.0 over 2.0
+      m_IntakeMotor.SetVoltage(units::volt_t{ 2.0*m_controller.GetRightTriggerAxis() });
+    } else {
+      m_IntakeMotor.SetVoltage(units::volt_t{0});
+    };
+
+    if (m_controller.GetXButton()) {
+      m_LeftShooterMotor.SetVoltage(units::volt_t{  6.0 });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 6.0 });
+    } else {
+      m_LeftShooterMotor.SetVoltage(units::volt_t{0});
+      m_RightShooterMotor.SetVoltage(units::volt_t{0});
+    };
+  }
+
 
   void TeleopPeriodic() override { DriveWithJoystick(true); }
 
@@ -318,10 +456,10 @@ class Robot : public frc::TimedRobot {
 
     //The line below is not working
     //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod());
-    m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod() > (units::time::second_t) 0);
+    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod() > (units::time::second_t) 0);
     //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative);
+    m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_controller.GetBButton());
   }
-
 
 };
 
