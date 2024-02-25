@@ -409,9 +409,9 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
       m_IntakeMotor.SetVoltage(units::volt_t{0});
     };
 
-    if (m_controller.GetXButton()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{  6.0 });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 6.0 });
+    if (m_controller.GetLeftTriggerAxis()) {
+      m_LeftShooterMotor.SetVoltage(units::volt_t{  -12.0*m_controller.GetLeftTriggerAxis() });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0*m_controller.GetLeftTriggerAxis() });
     } else {
       m_LeftShooterMotor.SetVoltage(units::volt_t{0});
       m_RightShooterMotor.SetVoltage(units::volt_t{0});
