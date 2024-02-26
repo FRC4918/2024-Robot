@@ -44,8 +44,8 @@
 
 //April Tag Variables
 static double desiredYaw;
-static double moveToAprilTag;
-//static units::angle::degree_t gyroYawHeading; //robot yaw (degrees)
+static double desiredDist;
+static units::angle::degree_t gyroYawHeading; //robot yaw (degrees)
 //static units::angular_velocity::degrees_per_second_t gyroYawRate; //robot rotate rate (degrees/second)
 
 //Camera Variables
@@ -57,7 +57,7 @@ class Robot : public frc::TimedRobot {
 
 //Gyro
 frc::ADIS16470_IMU gyro;
-ctre::phoenix::sensors::WPI_PigeonIMU m_gyro{1};
+//ctre::phoenix::sensors::WPI_PigeonIMU m_gyro{1};
 
 //SHOOTER SPARKMAX
 rev::CANSparkMax m_LeftShooterMotor{  13, rev::CANSparkMax::MotorType::kBrushless };
@@ -138,7 +138,7 @@ WPI_VictorSPX m_RightClimberMotor{10};
       // output.
       // grab robot yaw at frame grab
 
-      //units::angle::degree_t gyroYawHeadingLocal = gyroYawHeading;
+      units::angle::degree_t gyroYawHeadingLocal = gyroYawHeading;
       if (cvSink.GrabFrame(mat) == 0) {
         // Send the output the error.
         outputStream.NotifyError(cvSink.GetError());
@@ -157,7 +157,7 @@ WPI_VictorSPX m_RightClimberMotor{10};
 
 
       //desiredYaw = 0; // if this is enabled, robot will not remember tag location if it leaves the field of view
-      moveToAprilTag = 0;
+      desiredDist = 0.0;
 
       for (const frc::AprilTagDetection* detection : detections) {
         // remember we saw this tag
@@ -223,16 +223,16 @@ WPI_VictorSPX m_RightClimberMotor{10};
         double tagRotDistDeg = tagRotDist / 10; // tag distance in degrees, roughly
         units::length::meter_t tagDist = pose.Z(); //robot distance from tag
 
-        double desiredDist;
+        // How far we want to be from the tag
+        double targetDist;
 
         switch (tagId) {
           //SPEAKERS
           case 4:
           case 7: {
-            desiredDist = 4.572; // distance we want to be from april tag
-            //units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            //printf("april tag bearing: %f\n", tagBearing);
-            //desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            targetDist = 4.572; // distance we want to be from april tag
+            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
 
 
             //tag distance (z axis)
@@ -240,29 +240,29 @@ WPI_VictorSPX m_RightClimberMotor{10};
             double moveRate = 1.5*1.5;
             //if (moveToAprilTag < 0) moveRate = -moveRate;
             //double dEventualDist = (double) tagDist + (0.5 / 600.0) * moveRate; // accounts for overshooting  :( broken
-            moveToAprilTag = (double) tagDist - desiredDist;
+            desiredDist = (double) tagDist - targetDist;
             break;
           }
 
           //AMPS
           case 6:
           case 5: {
-            desiredDist = 1.0; // distance we want to be from april tag
-            //units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            //desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            targetDist = 1.0; // distance we want to be from april tag
+            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
             //tag distance (z axis)
-            moveToAprilTag = (double) tagDist - desiredDist;
+            desiredDist = (double) tagDist - targetDist;
             break;
           }
 
           //SOURCES
           case 10:
           case 1: {
-            desiredDist = 1.0; // distance we want to be from april tag
-            //units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            //desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            targetDist = 1.0; // distance we want to be from april tag
+            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
             //tag distance (z axis)
-            moveToAprilTag = (double) tagDist - desiredDist;
+            desiredDist = (double) tagDist - targetDist;
             break;
           }
 
@@ -273,11 +273,11 @@ WPI_VictorSPX m_RightClimberMotor{10};
           case 14:
           case 15:
           case 16: {
-            desiredDist = 1.5; // distance we want to be from april tag
-            //units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            //desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            targetDist = 1.5; // distance we want to be from april tag
+            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
             //tag distance (z axis)
-            moveToAprilTag = (double) tagDist - desiredDist;
+            desiredDist = (double) tagDist - targetDist;
             break;
           }
           default: {
@@ -287,7 +287,9 @@ WPI_VictorSPX m_RightClimberMotor{10};
       }
       
 
-      // put list of tags onto NT
+
+
+      //put list of tags onto NT
       pubTags.Set(tags);
 
       // Give the output stream a new image to display
@@ -374,7 +376,7 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
 
   }      // MotorInitTalon()
 
-  void MotorInitVictor( WPI_VictorSPX &m_motor )
+void MotorInitVictor( WPI_VictorSPX &m_motor )
   {
     m_motor.ConfigFactoryDefault( 10 );
     m_motor.SetInverted( false );
@@ -447,21 +449,33 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
 
   }
 
+void AutonomousInit() override {
+    //Camera does not work when robotInit is called twice
+    //RobotInit();
+  }
   void AutonomousPeriodic() override {
     DriveWithJoystick(false);
     m_swerve.UpdateOdometry();
+
+
   }
 
   void TestPeriodic() override {
+    units::angular_velocity::radians_per_second_t faceAprilTag;
+    units::velocity::meters_per_second_t moveToAprilTag;
+    faceAprilTag = (units::angular_velocity::radians_per_second_t) desiredYaw * M_PI / 180;
+    printf("Radians per second to turn: %f\n", faceAprilTag);
+    printf("Degrees to turn: %f\n", desiredYaw);
+
+
     if (m_controller.GetRightTriggerAxis()) {
-      //Voltage should be 12.0 over 2.0
-      m_IntakeMotor.SetVoltage(units::volt_t{ 2.0*m_controller.GetRightTriggerAxis() });
+      m_IntakeMotor.SetVoltage(units::volt_t{ -6.0*m_controller.GetRightTriggerAxis() });
     } else {
       m_IntakeMotor.SetVoltage(units::volt_t{0});
     };
 
     if (m_controller.GetLeftTriggerAxis()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{  -12.0*m_controller.GetLeftTriggerAxis() });
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0*m_controller.GetLeftTriggerAxis() });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0*m_controller.GetLeftTriggerAxis() });
       std::cout << "Lshooter:"
                 << m_LeftShooterMotorEncoder.GetVelocity()
@@ -469,9 +483,42 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
                 << m_RightShooterMotorEncoder.GetVelocity()
                 << std::endl;
     } else {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{0});
+      m_LeftShooterMotor.SetVoltage( units::volt_t{0});
       m_RightShooterMotor.SetVoltage(units::volt_t{0});
     };
+
+    // Climber up (Button A)
+    if (m_controller.GetAButton()) {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{ 6.0 });
+      m_RightClimberMotor.SetVoltage(units::volt_t{ 6.0 });
+
+    } else {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{0});
+      m_RightClimberMotor.SetVoltage(units::volt_t{0});
+    }
+
+    // Climber down (Button B)
+    if (m_controller.GetBButton()) {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{ -6.0 });
+      m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0 });
+    } else {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{0});
+      m_RightClimberMotor.SetVoltage(units::volt_t{0});
+    }
+
+    // Pivot up (Left Bumper)
+    if (m_controller.GetLeftBumper()) {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{ 3.0 });
+    } else {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
+    }
+    
+    // Pivot down (Right Bumper)
+    if (m_controller.GetRightBumper()) {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{ -3.0 });
+    } else {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
+    }
   }
 
 
@@ -485,7 +532,7 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
   // to 1.
   frc::SlewRateLimiter<units::scalar> m_xspeedLimiter{3 / 1_s};
   frc::SlewRateLimiter<units::scalar> m_yspeedLimiter{3 / 1_s};
-  frc::SlewRateLimiter<units::scalar> m_rotLimiter{3 / 1_s};
+  frc::SlewRateLimiter<units::scalar> m_rotLimiter{   3 / 1_s};
 
   void DriveWithJoystick(bool fieldRelative) {
     // Get the x speed. We are inverting this because Xbox controllers return
@@ -514,7 +561,32 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
     //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod());
     //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod() > (units::time::second_t) 0);
     //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative);
-    m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_controller.GetBButton());
+      
+    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_controller.GetBButton());
+
+    // Converts degrees from vision thread to radians per second.
+    // Also converts 
+    units::angular_velocity::radians_per_second_t faceAprilTag;
+    units::velocity::meters_per_second_t moveToAprilTag;
+    faceAprilTag = (units::angular_velocity::radians_per_second_t) desiredYaw * M_PI / 180;
+    moveToAprilTag = (units::velocity::meters_per_second_t) desiredDist;
+
+    printf("Radians per second to turn: %f\n", faceAprilTag);
+    printf("Degrees to turn: %f\n", desiredYaw);
+
+
+    // Handle Movement
+    if (m_controller.GetAButton()) {
+      //point to april tag
+      m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_controller.GetBButton());
+    } else if (m_controller.GetXButton()) {
+      //point and move to april tag
+      m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_controller.GetBButton());
+    } else {
+      m_swerve.Drive(xSpeed, moveToAprilTag, rot, fieldRelative, m_controller.GetBButton());
+    }
+
+
   }
 
 };
