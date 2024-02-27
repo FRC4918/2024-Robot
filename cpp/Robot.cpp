@@ -73,8 +73,8 @@ WPI_TalonSRX m_IntakeMotor{3};
 WPI_TalonSRX m_ShooterPivotMotor{12};
 
 //CLIMBER MC
-WPI_VictorSPX m_LeftClimberMotor{13};
-WPI_VictorSPX m_RightClimberMotor{10};
+WPI_VictorSPX m_LeftClimberMotor{11};
+WPI_VictorSPX m_RightClimberMotor{4};
 
    /*
     * The VisionThread() function demonstrates the detection of AprilTags.
@@ -348,7 +348,32 @@ void MotorInitSpark(rev::CANSparkMax &m_motor)
 void MotorInitTalon( WPI_TalonSRX &m_motor )
   {
     m_motor.ConfigFactoryDefault( 10 );
+    m_motor.SetSensorPhase( true );  // invert encoder value positive/negative
     m_motor.SetInverted( false );
+
+                                     /* Configure Sensor Source for Primary PID */
+           /* Config to stop motor immediately when limit switch is closed. */
+                                                    // if encoder is connected
+      if ( OK == m_motor.ConfigSelectedFeedbackSensor(
+                     FeedbackDevice::CTRE_MagEncoder_Relative, 0, 10 ) ) {
+//       m_motor.ConfigForwardLimitSwitchSource(
+//                   LimitSwitchSource::LimitSwitchSource_FeedbackConnector,
+//                   LimitSwitchNormal::LimitSwitchNormal_NormallyOpen );
+//       m_motor.ConfigReverseLimitSwitchSource(
+//                   LimitSwitchSource::LimitSwitchSource_FeedbackConnector,
+//                   LimitSwitchNormal::LimitSwitchNormal_NormallyOpen );
+          m_motor.OverrideLimitSwitchesEnable(true);
+      }
+
+         /*
+          * Configure Talon SRX Output and Sensor direction.
+          * Invert Motor to have green LEDs when driving Talon Forward
+          * ( Requesting Positive Output ),
+          * Phase sensor to have positive increment when driving Talon Forward
+          * (Green LED)
+          */
+      m_motor.SetSensorPhase(true);   // invert encoder value positive/negative
+      m_motor.SetInverted(false);     // invert direction of motor itself.
                                              /* Set the peak and nominal outputs */
     m_motor.ConfigNominalOutputForward( 0, 10 );
     m_motor.ConfigNominalOutputReverse( 0, 10 );
@@ -371,6 +396,23 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
                                           // Config 100% motor output to 12.0V
     m_motor.ConfigVoltageCompSaturation( 12.0 );
     m_motor.EnableVoltageCompensation( false );
+
+                     /* Set Closed Loop PIDF gains in slot0 - see documentation */
+                                                    // if encoder is connected
+      if ( OK == m_motor.ConfigSelectedFeedbackSensor(
+                          FeedbackDevice::CTRE_MagEncoder_Relative, 0, 10 ) ) {
+         m_motor.SelectProfileSlot( 0, 0 );
+         m_motor.Config_kF( 0, 0.15,   10 );
+         m_motor.Config_kP( 0, 0.2,    10 );
+         m_motor.Config_kI( 0, 0.0002, 10 );
+         m_motor.Config_kD( 0, 10.0,   10 );
+      } else {
+         m_motor.SelectProfileSlot( 0, 0 );
+         m_motor.Config_kF( 0, 0.15, 10 );
+         m_motor.Config_kP( 0, 0.0, 10 );
+         m_motor.Config_kI( 0, 0.0, 10 );
+         m_motor.Config_kD( 0, 0.0, 10 );
+      }
 
     m_motor.SetNeutralMode( NeutralMode::Brake );
 
@@ -461,22 +503,18 @@ void AutonomousInit() override {
   }
 
   void TestPeriodic() override {
-    units::angular_velocity::radians_per_second_t faceAprilTag;
-    units::velocity::meters_per_second_t moveToAprilTag;
-    faceAprilTag = (units::angular_velocity::radians_per_second_t) desiredYaw * M_PI / 180;
-    printf("Radians per second to turn: %f\n", faceAprilTag);
-    printf("Degrees to turn: %f\n", desiredYaw);
 
-
-    if (m_controller.GetRightTriggerAxis()) {
-      m_IntakeMotor.SetVoltage(units::volt_t{ -6.0*m_controller.GetRightTriggerAxis() });
+    // Intake (right trigger)
+    if (m_driverController.GetRightTriggerAxis()) {
+      m_IntakeMotor.SetVoltage(units::volt_t{ -6.0*m_driverController.GetRightTriggerAxis() });
     } else {
       m_IntakeMotor.SetVoltage(units::volt_t{0});
     };
 
-    if (m_controller.GetLeftTriggerAxis()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0*m_controller.GetLeftTriggerAxis() });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0*m_controller.GetLeftTriggerAxis() });
+    // Shooter (left trigger)
+    if (m_driverController.GetLeftTriggerAxis()) {
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0*m_driverController.GetLeftTriggerAxis() });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });
       std::cout << "Lshooter:"
                 << m_LeftShooterMotorEncoder.GetVelocity()
                 << "Rshooter:"
@@ -487,18 +525,17 @@ void AutonomousInit() override {
       m_RightShooterMotor.SetVoltage(units::volt_t{0});
     };
 
-    // Climber up (Button A)
-    if (m_controller.GetAButton()) {
+    /**
+     * D-pad/plus sign pad is referenced as "POV", with degrees as directions: 
+     * 0 = up, 90 = right, 45 = upper right, etc.
+    */
+    // Climber up (D-Pad Up)
+    if (m_driverController.GetPOV(0)) {
       m_LeftClimberMotor.SetVoltage(units::volt_t{ 6.0 });
       m_RightClimberMotor.SetVoltage(units::volt_t{ 6.0 });
-
-    } else {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{0});
-      m_RightClimberMotor.SetVoltage(units::volt_t{0});
     }
-
-    // Climber down (Button B)
-    if (m_controller.GetBButton()) {
+    // Climber down (D-Pad Down)
+    else if (m_driverController.GetPOV(180)) {
       m_LeftClimberMotor.SetVoltage(units::volt_t{ -6.0 });
       m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0 });
     } else {
@@ -507,25 +544,27 @@ void AutonomousInit() override {
     }
 
     // Pivot up (Left Bumper)
-    if (m_controller.GetLeftBumper()) {
+    if (m_driverController.GetLeftBumper()) {
       m_ShooterPivotMotor.SetVoltage(units::volt_t{ 3.0 });
-    } else {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
+      std::cout << m_ShooterPivotMotor.GetSelectedSensorPosition()
+                << std::endl;
     }
-    
     // Pivot down (Right Bumper)
-    if (m_controller.GetRightBumper()) {
+    else if (m_driverController.GetRightBumper() ) {
       m_ShooterPivotMotor.SetVoltage(units::volt_t{ -3.0 });
     } else {
       m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
     }
+
+    
   }
 
 
   void TeleopPeriodic() override { DriveWithJoystick(true); }
 
  private:
-  frc::XboxController m_controller{0};
+  frc::XboxController m_driverController{0};
+  //frc::XboxController m_operatorControler{1};
   Drivetrain m_swerve;
 
   // Slew rate limiters to make joystick inputs more gentle; 1/3 sec from 0
@@ -538,14 +577,14 @@ void AutonomousInit() override {
     // Get the x speed. We are inverting this because Xbox controllers return
     // negative values when we push forward.
     const auto xSpeed = -m_xspeedLimiter.Calculate(
-                            frc::ApplyDeadband(m_controller.GetLeftY(), 0.02)) *
+                            frc::ApplyDeadband(m_driverController.GetLeftY(), 0.02)) *
                         Drivetrain::kMaxSpeed;
 
     // Get the y speed or sideways/strafe speed. We are inverting this because
     // we want a positive value when we pull to the left. Xbox controllers
     // return positive values when you pull to the right by default.
     const auto ySpeed = -m_yspeedLimiter.Calculate(
-                            frc::ApplyDeadband(m_controller.GetLeftX(), 0.02)) *
+                            frc::ApplyDeadband(m_driverController.GetLeftX(), 0.02)) *
                         Drivetrain::kMaxSpeed;
 
     // Get the rate of angular rotation. We are inverting this because we want a
@@ -553,7 +592,7 @@ void AutonomousInit() override {
     // mathematics). Xbox controllers return positive values when you pull to
     // the right by default.
     const auto rot = -m_rotLimiter.Calculate(
-                         frc::ApplyDeadband(m_controller.GetRightX(), 0.02)) *
+                         frc::ApplyDeadband(m_driverController.GetRightX(), 0.02)) *
                      Drivetrain::kMaxAngularSpeed;
 
 
@@ -562,7 +601,7 @@ void AutonomousInit() override {
     //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod() > (units::time::second_t) 0);
     //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative);
       
-    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_controller.GetBButton());
+    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_driverController.GetBButton());
 
     // Converts degrees from vision thread to radians per second.
     // Also converts 
@@ -575,17 +614,72 @@ void AutonomousInit() override {
     printf("Degrees to turn: %f\n", desiredYaw);
 
 
-    // Handle Movement
-    if (m_controller.GetAButton()) {
+    /**
+     * Driver Controller
+    */
+    if (m_driverController.GetAButton()) {
       //point to april tag
-      m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_controller.GetBButton());
-    } else if (m_controller.GetXButton()) {
+      m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_driverController.GetBButton());
+    } else if (m_driverController.GetXButton()) {
       //point and move to april tag
-      m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_controller.GetBButton());
+      m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_driverController.GetBButton());
     } else {
-      m_swerve.Drive(xSpeed, moveToAprilTag, rot, fieldRelative, m_controller.GetBButton());
+      m_swerve.Drive(xSpeed, moveToAprilTag, rot, fieldRelative, m_driverController.GetBButton());
     }
 
+
+    /**
+     * Operator Conroller
+    */
+    // Pivot up (Left Bumper)
+    if (m_driverController.GetLeftBumper() /*&& m_ShooterPivotMotor.GetSensorCollection().GetAnalogIn*/) {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{ 3.0 });
+    } else {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
+    }
+    // Pivot down (Right Bumper)
+    if (m_driverController.GetRightBumper()) {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{ -3.0 });
+    } else {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
+    }
+
+    /**
+     * D-pad/plus sign pad is referenced as "POV", with degrees as directions: 
+     * 0 = up, 90 = right, 45 = upper right, etc.
+    */
+    // Climber up (D-Pad Up)
+    if (m_driverController.GetPOV(0)) {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{ 6.0 });
+      m_RightClimberMotor.SetVoltage(units::volt_t{ 6.0 });
+    } else {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{0});
+      m_RightClimberMotor.SetVoltage(units::volt_t{0});
+    }
+    // Climber down (D-Pad Down)
+    if (m_driverController.GetPOV(180)) {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{ -6.0 });
+      m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0 });
+    } else {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{0});
+      m_RightClimberMotor.SetVoltage(units::volt_t{0});
+    }
+
+    // Intake (right trigger)
+    if (m_driverController.GetRightTriggerAxis()) {
+      m_IntakeMotor.SetVoltage(units::volt_t{ -6.0*m_driverController.GetRightTriggerAxis() });
+    } else {
+      m_IntakeMotor.SetVoltage(units::volt_t{0});
+    };
+
+    // Shooter (left trigger)
+    if (m_driverController.GetLeftTriggerAxis()) {
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0*m_driverController.GetLeftTriggerAxis() });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });
+    } else {
+      m_LeftShooterMotor.SetVoltage( units::volt_t{0});
+      m_RightShooterMotor.SetVoltage(units::volt_t{0});
+    };
 
   }
 
