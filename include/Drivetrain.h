@@ -8,6 +8,7 @@
 #include <numbers>
 
 #include <frc/AnalogGyro.h>
+#include <frc/ADIS16470_IMU.h>
 #include <frc/estimator/SwerveDrivePoseEstimator.h>
 #include <frc/geometry/Translation2d.h>
 #include <frc/kinematics/SwerveDriveKinematics.h>
@@ -69,14 +70,15 @@ private:
 #else
        // For the 2023 robot, the swerve modules got re-ordered
        // (the front-left and front-right modules got swapped):
-   SwerveModule m_frontLeft{ 10, 11, 1, 304};
-   SwerveModule m_frontRight{ 8,  9, 0, 126};
-   SwerveModule m_backLeft{  14, 15, 3,  24};
-   SwerveModule m_backRight{ 12, 13, 2, 150};
+   SwerveModule m_frontLeft{  8,  17, 1, 304 }; //304 //294 //204 //294 //314
+   SwerveModule m_frontRight{ 12, 15, 0, 54  }; //126 //24 //44 //134 //44
+   SwerveModule m_backLeft{   14, 9,  3, 70  }; //24 //216 //261 //81 //71 //161 //70
+   SwerveModule m_backRight{  11, 16, 2, 304 }; //150 //330 //285 //304 //214
 #endif
 
-   // frc::AnalogGyro m_gyro{0};
+   //frc::AnalogGyro m_gyro{0};
    ctre::phoenix::sensors::WPI_PigeonIMU m_gyro{1};
+   //frc::ADIS16470_IMU gyro;
 
    frc::SwerveDriveKinematics<4> m_kinematics{
        m_frontLeftLocation, m_frontRightLocation, m_backLeftLocation,
