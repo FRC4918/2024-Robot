@@ -70,11 +70,15 @@ WPI_TalonSRX m_IntakeMotor{3};
 
 //PIVOT MC
 //NO HARDSTOP
-WPI_TalonSRX m_ShooterPivotMotor{12};
+WPI_TalonSRX m_ShooterPivotMotor{36};
 
 //CLIMBER MC
 WPI_VictorSPX m_LeftClimberMotor{11};
 WPI_VictorSPX m_RightClimberMotor{4};
+//CLIMBER PIN SERVO
+// doesnt work, Servo doesn't exist???
+//frc::Servo m_ClimberPinServo{4}
+
 
    /*
     * The VisionThread() function demonstrates the detection of AprilTags.
@@ -416,6 +420,8 @@ void MotorInitTalon( WPI_TalonSRX &m_motor )
 
     m_motor.SetNeutralMode( NeutralMode::Brake );
 
+    
+
   }      // MotorInitTalon()
 
 void MotorInitVictor( WPI_VictorSPX &m_motor )
@@ -466,8 +472,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     MotorInitVictor( m_RightClimberMotor);
     MotorInitTalon( m_IntakeMotor);
     MotorInitTalon( m_ShooterPivotMotor);
-      m_ShooterPivotMotor.ConfigPeakCurrentLimit(1);       // limit motor power severely
-      m_ShooterPivotMotor.ConfigContinuousCurrentLimit(1); // to 10 Amps
+      //m_ShooterPivotMotor.ConfigPeakCurrentLimit(1);       // limit motor power severely
+      //m_ShooterPivotMotor.ConfigContinuousCurrentLimit(1); // to 10 Amps
 
 #ifndef SPARKMAXDRIVE
     /*
@@ -502,6 +508,10 @@ void AutonomousInit() override {
 
   }
 
+  void TestInit() override {
+
+  }
+
   void TestPeriodic() override {
 
     // Intake (right trigger)
@@ -530,12 +540,12 @@ void AutonomousInit() override {
      * 0 = up, 90 = right, 45 = upper right, etc.
     */
     // Climber up (D-Pad Up)
-    if (m_driverController.GetPOV(0)) {
+    if (m_driverController.GetAButton()) {
       m_LeftClimberMotor.SetVoltage(units::volt_t{ 6.0 });
       m_RightClimberMotor.SetVoltage(units::volt_t{ 6.0 });
     }
     // Climber down (D-Pad Down)
-    else if (m_driverController.GetPOV(180)) {
+    else if (m_driverController.GetYButton()) {
       m_LeftClimberMotor.SetVoltage(units::volt_t{ -6.0 });
       m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0 });
     } else {
@@ -546,7 +556,12 @@ void AutonomousInit() override {
     // Pivot up (Left Bumper)
     if (m_driverController.GetLeftBumper()) {
       m_ShooterPivotMotor.SetVoltage(units::volt_t{ 3.0 });
+      //m_ShooterPivotMotor.Set
       std::cout << m_ShooterPivotMotor.GetSelectedSensorPosition()
+                << "  Vel: "
+                << m_ShooterPivotMotor.GetSelectedSensorVelocity()
+                << "  Amplitude: "
+                << m_ShooterPivotMotor.GetSensorCollection().GetPinStateQuadA()
                 << std::endl;
     }
     // Pivot down (Right Bumper)
@@ -560,7 +575,30 @@ void AutonomousInit() override {
   }
 
 
-  void TeleopPeriodic() override { DriveWithJoystick(true); }
+  void TeleopPeriodic() override {
+
+    //print controller hats to find deadband
+    /*
+    std::cout << "Controller Left: ("
+              << m_driverController.GetLeftX()
+              << ", "
+              << m_driverController.GetLeftY()
+              << ")   "
+              << "Controller Right: ("
+              << m_driverController.GetRightX()
+              << ", "
+              << m_driverController.GetRightY()
+              << ")"
+              << std::endl;
+    */
+
+    DriveWithJoystick(true);
+
+    /**
+     * Operator Conrollers
+     * (TO BE COPIED FROM TestPeriodic)
+    */
+  }
 
  private:
   frc::XboxController m_driverController{0};
@@ -577,22 +615,24 @@ void AutonomousInit() override {
     // Get the x speed. We are inverting this because Xbox controllers return
     // negative values when we push forward.
     const auto xSpeed = -m_xspeedLimiter.Calculate(
-                            frc::ApplyDeadband(m_driverController.GetLeftY(), 0.02)) *
+                            frc::ApplyDeadband(m_driverController.GetLeftY(), 0.05)) *
                         Drivetrain::kMaxSpeed;
 
     // Get the y speed or sideways/strafe speed. We are inverting this because
     // we want a positive value when we pull to the left. Xbox controllers
     // return positive values when you pull to the right by default.
     const auto ySpeed = -m_yspeedLimiter.Calculate(
-                            frc::ApplyDeadband(m_driverController.GetLeftX(), 0.02)) *
+                            frc::ApplyDeadband(m_driverController.GetLeftX(), 0.05)) *
                         Drivetrain::kMaxSpeed;
+    std::cout << (double) ySpeed
+              << std::endl;
 
     // Get the rate of angular rotation. We are inverting this because we want a
     // positive value when we pull to the left (remember, CCW is positive in
     // mathematics). Xbox controllers return positive values when you pull to
     // the right by default.
     const auto rot = -m_rotLimiter.Calculate(
-                         frc::ApplyDeadband(m_driverController.GetRightX(), 0.02)) *
+                         frc::ApplyDeadband(m_driverController.GetRightX(), 0.05)) *
                      Drivetrain::kMaxAngularSpeed;
 
 
@@ -610,8 +650,8 @@ void AutonomousInit() override {
     faceAprilTag = (units::angular_velocity::radians_per_second_t) desiredYaw * M_PI / 180;
     moveToAprilTag = (units::velocity::meters_per_second_t) desiredDist;
 
-    printf("Radians per second to turn: %f\n", faceAprilTag);
-    printf("Degrees to turn: %f\n", desiredYaw);
+    //printf("Radians per second to turn: %f\n", faceAprilTag);
+    //printf("Degrees to turn: %f\n", desiredYaw);
 
 
     /**
@@ -620,66 +660,12 @@ void AutonomousInit() override {
     if (m_driverController.GetAButton()) {
       //point to april tag
       m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_driverController.GetBButton());
-    } else if (m_driverController.GetXButton()) {
-      //point and move to april tag
-      m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_driverController.GetBButton());
     } else {
-      m_swerve.Drive(xSpeed, moveToAprilTag, rot, fieldRelative, m_driverController.GetBButton());
+      m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_driverController.GetBButton());
     }
 
 
-    /**
-     * Operator Conroller
-    */
-    // Pivot up (Left Bumper)
-    if (m_driverController.GetLeftBumper() /*&& m_ShooterPivotMotor.GetSensorCollection().GetAnalogIn*/) {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{ 3.0 });
-    } else {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
-    }
-    // Pivot down (Right Bumper)
-    if (m_driverController.GetRightBumper()) {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{ -3.0 });
-    } else {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
-    }
-
-    /**
-     * D-pad/plus sign pad is referenced as "POV", with degrees as directions: 
-     * 0 = up, 90 = right, 45 = upper right, etc.
-    */
-    // Climber up (D-Pad Up)
-    if (m_driverController.GetPOV(0)) {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{ 6.0 });
-      m_RightClimberMotor.SetVoltage(units::volt_t{ 6.0 });
-    } else {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{0});
-      m_RightClimberMotor.SetVoltage(units::volt_t{0});
-    }
-    // Climber down (D-Pad Down)
-    if (m_driverController.GetPOV(180)) {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{ -6.0 });
-      m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0 });
-    } else {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{0});
-      m_RightClimberMotor.SetVoltage(units::volt_t{0});
-    }
-
-    // Intake (right trigger)
-    if (m_driverController.GetRightTriggerAxis()) {
-      m_IntakeMotor.SetVoltage(units::volt_t{ -6.0*m_driverController.GetRightTriggerAxis() });
-    } else {
-      m_IntakeMotor.SetVoltage(units::volt_t{0});
-    };
-
-    // Shooter (left trigger)
-    if (m_driverController.GetLeftTriggerAxis()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0*m_driverController.GetLeftTriggerAxis() });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });
-    } else {
-      m_LeftShooterMotor.SetVoltage( units::volt_t{0});
-      m_RightShooterMotor.SetVoltage(units::volt_t{0});
-    };
+    
 
   }
 
