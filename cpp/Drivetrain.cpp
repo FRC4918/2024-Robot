@@ -23,9 +23,11 @@ void Drivetrain::Drive( units::meters_per_second_t xSpeed,
                         bool fieldRelative,
                         bool bFreezeDriveMotors )
 {
+   frc::Rotation2d m_gyro_GetRotation2d { m_gyro.GetAngle() };
+
    auto states = m_kinematics.ToSwerveModuleStates(
        fieldRelative ? frc::ChassisSpeeds::FromFieldRelativeSpeeds(
-                           xSpeed, ySpeed, rot, m_gyro.GetRotation2d())
+                           xSpeed, ySpeed, rot, m_gyro_GetRotation2d)
                      : frc::ChassisSpeeds{xSpeed, ySpeed, rot});
 
    m_kinematics.DesaturateWheelSpeeds(&states, kMaxSpeed);
@@ -82,7 +84,7 @@ void Drivetrain::Drive( units::meters_per_second_t xSpeed,
    m_backRight.SetDesiredState(  br, bFreezeDriveMotors );
 }
 
-
+#ifdef JAG_NOTDEFINED
 bool Drivetrain::DriveUphill( units::meters_per_second_t sSpeed ) {
    bool bReturnValue = false;
    static int iCallCount = 0;
@@ -184,12 +186,14 @@ bool Drivetrain::DriveUphill( units::meters_per_second_t sSpeed ) {
    iCallCount++;
    return bReturnValue;
 }
+#endif
 
 void Drivetrain::Reset()
 {
    m_gyro.Reset();
    usleep( 10000 );                                     // wait 10 milliseconds
-   m_poseEstimator.ResetPosition( m_gyro.GetRotation2d(),
+   frc::Rotation2d m_gyro_GetRotation2d { m_gyro.GetAngle() };
+   m_poseEstimator.ResetPosition( m_gyro_GetRotation2d,
                      {m_frontLeft.GetPosition(), m_frontRight.GetPosition(),
                       m_backLeft.GetPosition(),  m_backRight.GetPosition()  },
                                       { (units::meter_t)0.0,     // X on field
@@ -204,7 +208,8 @@ void Drivetrain::UpdateOdometry()
    // m_odometry.Update(m_gyro.GetRotation2d(),
    //                   {m_frontLeft.GetPosition(), m_frontRight.GetPosition(),
    //                    m_backLeft.GetPosition(), m_backRight.GetPosition()});
-   m_poseEstimator.Update(m_gyro.GetRotation2d(),
+   frc::Rotation2d m_gyro_GetRotation2d { m_gyro.GetAngle() };
+   m_poseEstimator.Update(m_gyro_GetRotation2d,
                      {m_frontLeft.GetPosition(), m_frontRight.GetPosition(),
                       m_backLeft.GetPosition(),  m_backRight.GetPosition()  });
 // if ( 0 == iCallCount%50 ) {

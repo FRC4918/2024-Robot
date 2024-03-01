@@ -77,8 +77,8 @@ private:
 #endif
 
    //frc::AnalogGyro m_gyro{0};
-   ctre::phoenix::sensors::WPI_PigeonIMU m_gyro{1};
-   //frc::ADIS16470_IMU gyro;
+   // ctre::phoenix::sensors::WPI_PigeonIMU m_gyro{1};
+   frc::ADIS16470_IMU m_gyro;
 
    frc::SwerveDriveKinematics<4> m_kinematics{
        m_frontLeftLocation, m_frontRightLocation, m_backLeftLocation,

@@ -46,7 +46,7 @@
 static double desiredYaw;
 static double desiredDist;
 static units::angle::degree_t gyroYawHeading; //robot yaw (degrees)
-//static units::angular_velocity::degrees_per_second_t gyroYawRate; //robot rotate rate (degrees/second)
+static units::angular_velocity::degrees_per_second_t gyroYawRate; //robot rotate rate (degrees/second)
 
 //Camera Variables
 cs::UsbCamera camera1;
@@ -56,7 +56,7 @@ static cs::CvSink cvSink;
 class Robot : public frc::TimedRobot {
 
 //Gyro
-frc::ADIS16470_IMU gyro;
+// frc::ADIS16470_IMU gyro;
 //ctre::phoenix::sensors::WPI_PigeonIMU m_gyro{1};
 
 //SHOOTER SPARKMAX
@@ -234,16 +234,12 @@ WPI_VictorSPX m_RightClimberMotor{4};
           //SPEAKERS
           case 4:
           case 7: {
-            targetDist = 4.572; // distance we want to be from april tag
+            //tag rotation
             units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
             desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
 
-
             //tag distance (z axis)
-            //printf("tag distance: %f\n", tagDist.value());
-            double moveRate = 1.5*1.5;
-            //if (moveToAprilTag < 0) moveRate = -moveRate;
-            //double dEventualDist = (double) tagDist + (0.5 / 600.0) * moveRate; // accounts for overshooting  :( broken
+            targetDist = 4.572; // distance we want to be from april tag
             desiredDist = (double) tagDist - targetDist;
             break;
           }
@@ -251,10 +247,12 @@ WPI_VictorSPX m_RightClimberMotor{4};
           //AMPS
           case 6:
           case 5: {
-            targetDist = 1.0; // distance we want to be from april tag
+            //tag rotation
             units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
             desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+
             //tag distance (z axis)
+            targetDist = 1.0; // distance we want to be from april tag
             desiredDist = (double) tagDist - targetDist;
             break;
           }
@@ -262,10 +260,12 @@ WPI_VictorSPX m_RightClimberMotor{4};
           //SOURCES
           case 10:
           case 1: {
-            targetDist = 1.0; // distance we want to be from april tag
+            //tag rotation
             units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
             desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+
             //tag distance (z axis)
+            targetDist = 1.0; // distance we want to be from april tag
             desiredDist = (double) tagDist - targetDist;
             break;
           }
@@ -493,7 +493,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 					      // follow the change in direction
 					      // of the master? */
 #endif
-    gyro.Calibrate();
+    // gyro.Calibrate();
 
   }
 
@@ -502,8 +502,11 @@ void AutonomousInit() override {
     //RobotInit();
   }
   void AutonomousPeriodic() override {
+    //static int 
+
     DriveWithJoystick(false);
     m_swerve.UpdateOdometry();
+
 
 
   }
@@ -513,69 +516,14 @@ void AutonomousInit() override {
   }
 
   void TestPeriodic() override {
-
-    // Intake (right trigger)
-    if (m_driverController.GetRightTriggerAxis()) {
-      m_IntakeMotor.SetVoltage(units::volt_t{ -6.0*m_driverController.GetRightTriggerAxis() });
-    } else {
-      m_IntakeMotor.SetVoltage(units::volt_t{0});
-    };
-
-    // Shooter (left trigger)
-    if (m_driverController.GetLeftTriggerAxis()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0*m_driverController.GetLeftTriggerAxis() });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });
-      std::cout << "Lshooter:"
-                << m_LeftShooterMotorEncoder.GetVelocity()
-                << "Rshooter:"
-                << m_RightShooterMotorEncoder.GetVelocity()
-                << std::endl;
-    } else {
-      m_LeftShooterMotor.SetVoltage( units::volt_t{0});
-      m_RightShooterMotor.SetVoltage(units::volt_t{0});
-    };
-
-    /**
-     * D-pad/plus sign pad is referenced as "POV", with degrees as directions: 
-     * 0 = up, 90 = right, 45 = upper right, etc.
-    */
-    // Climber up (D-Pad Up)
-    if (m_driverController.GetAButton()) {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{ 6.0 });
-      m_RightClimberMotor.SetVoltage(units::volt_t{ 6.0 });
-    }
-    // Climber down (D-Pad Down)
-    else if (m_driverController.GetYButton()) {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{ -6.0 });
-      m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0 });
-    } else {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{0});
-      m_RightClimberMotor.SetVoltage(units::volt_t{0});
-    }
-
-    // Pivot up (Left Bumper)
-    if (m_driverController.GetLeftBumper()) {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{ 3.0 });
-      //m_ShooterPivotMotor.Set
-      std::cout << m_ShooterPivotMotor.GetSelectedSensorPosition()
-                << "  Vel: "
-                << m_ShooterPivotMotor.GetSelectedSensorVelocity()
-                << "  Amplitude: "
-                << m_ShooterPivotMotor.GetSensorCollection().GetPinStateQuadA()
-                << std::endl;
-    }
-    // Pivot down (Right Bumper)
-    else if (m_driverController.GetRightBumper() ) {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{ -3.0 });
-    } else {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
-    }
-
-    
+    OperatorControls();
   }
 
 
   void TeleopPeriodic() override {
+    // std::cout << "gryo: "
+    //          << (double) gyro.GetAngle()
+    //          << std::endl;
 
     //print controller hats to find deadband
     /*
@@ -592,12 +540,43 @@ void AutonomousInit() override {
               << std::endl;
     */
 
-    DriveWithJoystick(true);
+    if (m_driverController.GetYButton()) {
+      DriveWithJoystick(false);
+      printf("robot centric\n");
+    } else {
+      DriveWithJoystick(true);
+      printf("field centric\n");
+    }
+      
 
+
+    //The line below is not working
+    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod());
+    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod() > (units::time::second_t) 0);
+    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative);
+      
+    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_driverController.GetBButton());
+
+
+
+
+
+    gyroYawHeading = (units::angle::degree_t)0;  // gyro.GetAngle();
+    gyroYawRate = (units::angular_velocity::degrees_per_second_t)0; // gyro.GetRate();
+
+    double dEventualYaw = (double) gyroYawHeading + (0.5 / 600.0) * (double) gyroYawRate * std::abs((double) gyroYawRate); // accounts for overshooting
+
+    //find the shortest degrees to face tag
+    int degreesToTurn = (int) ((double) dEventualYaw - desiredYaw) % 360;
+    if (degreesToTurn > 180) degreesToTurn -= 360;
+    if (degreesToTurn < -180) degreesToTurn += 360;
     /**
      * Operator Conrollers
      * (TO BE COPIED FROM TestPeriodic)
     */
+    //OperatorControls();
+
+    m_swerve.UpdateOdometry();
   }
 
  private:
@@ -624,8 +603,7 @@ void AutonomousInit() override {
     const auto ySpeed = -m_yspeedLimiter.Calculate(
                             frc::ApplyDeadband(m_driverController.GetLeftX(), 0.05)) *
                         Drivetrain::kMaxSpeed;
-    std::cout << (double) ySpeed
-              << std::endl;
+
 
     // Get the rate of angular rotation. We are inverting this because we want a
     // positive value when we pull to the left (remember, CCW is positive in
@@ -643,32 +621,103 @@ void AutonomousInit() override {
       
     //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_driverController.GetBButton());
 
+
+
+
+
+    gyroYawHeading = (units::angle::degree_t)0.0; // gyro.GetAngle();
+    gyroYawRate = (units::angular_velocity::degrees_per_second_t)0.0; // gyro.GetRate();
+
+    double dEventualYaw = (double) gyroYawHeading + (0.5 / 600.0) * (double) gyroYawRate * std::abs((double) gyroYawRate); // accounts for overshooting
+
+    //find the shortest degrees to face tag
+    int degreesToTurn = (int) ((double) dEventualYaw - desiredYaw) % 360;
+    if (degreesToTurn > 180) degreesToTurn -= 360;
+    if (degreesToTurn < -180) degreesToTurn += 360;
+
     // Converts degrees from vision thread to radians per second.
     // Also converts 
-    units::angular_velocity::radians_per_second_t faceAprilTag;
+    units::angular_velocity::radians_per_second_t faceAprilTag = (units::angular_velocity::radians_per_second_t) desiredYaw * M_PI / 180;
+    
+
+
     units::velocity::meters_per_second_t moveToAprilTag;
-    faceAprilTag = (units::angular_velocity::radians_per_second_t) desiredYaw * M_PI / 180;
     moveToAprilTag = (units::velocity::meters_per_second_t) desiredDist;
-
-    //printf("Radians per second to turn: %f\n", faceAprilTag);
-    //printf("Degrees to turn: %f\n", desiredYaw);
-
-
     /**
      * Driver Controller
     */
-    if (m_driverController.GetAButton()) {
-      //point to april tag
-      m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_driverController.GetBButton());
-    } else {
-      m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_driverController.GetBButton());
-    }
+    // if (m_driverController.GetAButton()) {
+    //   //point to april tag
+    //   m_swerve.Drive(xSpeed, ySpeed, faceAprilTag, fieldRelative, m_driverController.GetBButton());
+    //   printf("Radians per second to turn: %f\n", faceAprilTag);
+    //   printf("Degrees to turn: %f\n", desiredYaw);
+    // } else if (m_driverController.GetXButton()) {
+    //   //move to april tag
+
+    // } else {
+    //   m_swerve.Drive(xSpeed, ySpeed, rot, true, m_driverController.GetBButton());
+    // }
+    m_swerve.Drive(xSpeed, ySpeed, rot, true, m_driverController.GetBButton());
 
 
     
 
   }
 
+  void OperatorControls() {
+    // Intake (right trigger)
+    if (m_driverController.GetRightTriggerAxis()) {
+      m_IntakeMotor.SetVoltage(units::volt_t{ -6.0*m_driverController.GetRightTriggerAxis() });
+    } else {
+      m_IntakeMotor.SetVoltage(units::volt_t{0});
+    };
+
+    // Shooter (left trigger)
+    if (m_driverController.GetLeftTriggerAxis()) {
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0*m_driverController.GetLeftTriggerAxis() });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0*m_driverController.GetLeftTriggerAxis() });
+      std::cout << "Lshooter:"
+                << m_LeftShooterMotorEncoder.GetVelocity()
+                << "Rshooter:"
+                << m_RightShooterMotorEncoder.GetVelocity()
+                << std::endl;
+    } else {
+      m_LeftShooterMotor.SetVoltage( units::volt_t{0});
+      m_RightShooterMotor.SetVoltage(units::volt_t{0});
+    };
+
+    // Climber up (A)
+    if (m_driverController.GetAButton()) {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{ 6.0 });
+      m_RightClimberMotor.SetVoltage(units::volt_t{ 6.0 });
+    }
+    // Climber down (Y)
+    else if (m_driverController.GetYButton()) {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{ -6.0 });
+      m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0 });
+    } else {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{0});
+      m_RightClimberMotor.SetVoltage(units::volt_t{0});
+    }
+
+    // Pivot up (Left Bumper)
+    if (m_driverController.GetLeftBumper()) {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{ 3.0 });
+      //m_ShooterPivotMotor.Set
+      std::cout << m_ShooterPivotMotor.GetSelectedSensorPosition()
+                << "  Vel: "
+                << m_ShooterPivotMotor.GetSelectedSensorVelocity()
+                << "  Amplitude: "
+                << m_ShooterPivotMotor.GetSensorCollection().GetPinStateQuadA()
+                << std::endl;
+    }
+    // Pivot down (Right Bumper)
+    else if (m_driverController.GetRightBumper() ) {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{ -3.0 });
+    } else {
+      m_ShooterPivotMotor.SetVoltage(units::volt_t{0});
+    }
+  }
 };
 
 #ifndef RUNNING_FRC_TESTS
