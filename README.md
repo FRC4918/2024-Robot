@@ -10,6 +10,7 @@ PRIMARY
 - Fix Apriltag code for Swervebot code
   - Look at April Tag
   - Move to April Tag
+
 SECONDARY
 - Note detection
   - Shape
