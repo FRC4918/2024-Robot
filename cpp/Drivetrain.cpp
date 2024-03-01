@@ -227,3 +227,11 @@ void Drivetrain::UpdateOdometry()
 //          m_poseEstimator.GetEstimatedPosition()),
 //      frc::Timer::GetFPGATimestamp() - 0.3_s);
 }
+
+units::angle::degree_t Drivetrain::GetYaw() {
+   return m_gyro.GetAngle();
+}
+
+units::angular_velocity::degrees_per_second_t Drivetrain::GetRate() {
+   return m_gyro.GetRate();
+}
