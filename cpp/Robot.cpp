@@ -40,6 +40,7 @@
 #include <iostream>
 
 //#define SAFETY_LIMITS 1;
+//#define AUTO;
 
 
 //April Tag Variables
@@ -530,13 +531,39 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
     //DriveWithJoystick(false);
 
-    
+#ifndef AUTO    
     std::cout << DriveToPose({ 
                   (units::foot_t) 2.0,
                   (units::foot_t) 0.0,
                   (units::degree_t) 0.0
                 }, false)
               << std::endl;
+#endif
+
+#ifdef AUTO
+    switch (poseState) {
+      case 0: {
+        if (DriveToPose({ 
+              (units::foot_t) 2.0,
+              (units::foot_t) 0.0,
+              (units::degree_t) 0.0
+            }, false)) {
+          poseState++;
+        }
+        break;
+      }
+      case 1: {
+        if (DriveToPose({ 
+              (units::foot_t) 2.0,
+              (units::foot_t) 0.0,
+              (units::degree_t) 0.0
+            }, false)) {
+          poseState++;
+        }
+        break;
+      }
+    }
+#endif
     
     //switch
 
@@ -545,21 +572,28 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   }
 
   void TestInit() override {
-    // Climber (Left- and Right+ Triggers)
-    if (m_operatorController.GetLeftTriggerAxis() > 0.3) {
-      m_LeftClimberMotor.SetVoltage( units::volt_t{ -6.0*m_operatorController.GetLeftTriggerAxis() });
-      m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0*m_operatorController.GetLeftTriggerAxis() });
-    } else if (m_operatorController.GetRightTriggerAxis() > 0.3) {
-      m_LeftClimberMotor.SetVoltage( units::volt_t{ 6.0*m_operatorController.GetRightTriggerAxis() });
-      m_RightClimberMotor.SetVoltage(units::volt_t{ 6.0*m_operatorController.GetRightTriggerAxis() });
-    } else {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{  0 });
-      m_RightClimberMotor.SetVoltage(units::volt_t{ 0 });
-    }
+    
   }
 
   void TestPeriodic() override {
-    OperatorControls();
+    //OperatorControls();
+    // Climbers (Right and Left Triggers)
+    // - is default
+    // if (A) is held, climbers spin in reverse
+    int goReverse = 1;
+    if (m_operatorController.GetYButton()) {
+      goReverse = -1;
+    }
+    if (m_operatorController.GetRightTriggerAxis() > 0.3) {
+      m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0*m_operatorController.GetRightTriggerAxis()*goReverse });
+    } else {
+      m_RightClimberMotor.SetVoltage(units::volt_t{ 0 });
+    }
+    if (m_operatorController.GetLeftTriggerAxis() > 0.3) {
+      m_LeftClimberMotor.SetVoltage( units::volt_t{ -6.0*m_operatorController.GetLeftTriggerAxis()*goReverse });
+    } else {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{ 0 });
+    }
   }
 
 
@@ -598,7 +632,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     // Get the y speed or sideways/strafe speed. We are inverting this because
     // we want a positive value when we pull to the left. Xbox controllers
     // return positive values when you pull to the right by default.
-    const auto ySpeed = -m_yspeedLimiter.Calculate(
+    auto ySpeed = -m_yspeedLimiter.Calculate(
                             frc::ApplyDeadband(m_driverController.GetLeftX(), 0.1)) *
                         Drivetrain::kMaxSpeed;
 
@@ -657,13 +691,15 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   // Look To April Tag (Left Bumper)
   if (m_driverController.GetLeftBumper()) {
     rot = -faceAprilTag;
-    std::cout << (double) faceAprilTag
-              << std::endl;
+    // std::cout << (double) faceAprilTag
+    //           << std::endl;
   }
 
   // Look / Go To April Tag (Right Bumper)
   if (m_driverController.GetRightBumper()) {
-    //m_driverController.SetRumble(frc::GenericHID::RumbleType::kBothRumble, 1.0);
+    rot = -faceAprilTag;
+    fieldRelative = false;
+    ySpeed = (units::velocity::meters_per_second_t) desiredDist * 5; // 5 meters per second
   }
 
   // Reset Position (Y)
@@ -680,8 +716,6 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   }
 
-
-const
   void OperatorControls() {
     // Intake (Right Bumper)
     if (m_operatorController.GetRightBumper() && !noteInShooter) {
@@ -712,23 +746,17 @@ const
       m_RightShooterMotor.SetVoltage(units::volt_t{ 0 });
     };
 
-    // Climber (Left+ and Right- Triggers)
-    if (m_operatorController.GetLeftTriggerAxis() > 0.3) {
-      m_LeftClimberMotor.SetVoltage( units::volt_t{ -6.0*m_operatorController.GetLeftTriggerAxis() });
-      m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0*m_operatorController.GetLeftTriggerAxis() });
+    // Climbers (Left and Right Triggers)
+    if (m_operatorController.GetRightTriggerAxis() > 0.3) {
+      m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0*m_operatorController.GetRightTriggerAxis() });
     } else {
-      m_LeftClimberMotor.SetVoltage(units::volt_t{  0 });
       m_RightClimberMotor.SetVoltage(units::volt_t{ 0 });
     }
-
-    // Climber down (Y)
-    //else if (m_driverController.GetYButton()) {
-      //m_LeftClimberMotor.SetVoltage(units::volt_t{  -6.0 });
-      //m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0 });
-    //} else {
-    //  m_LeftClimberMotor.SetVoltage(units::volt_t{  0 });
-    //  m_RightClimberMotor.SetVoltage(units::volt_t{ 0 });
-    //}
+    if (m_operatorController.GetLeftTriggerAxis() > 0.3) {
+      m_LeftClimberMotor.SetVoltage( units::volt_t{ -6.0*m_operatorController.GetLeftTriggerAxis() });
+    } else {
+      m_LeftClimberMotor.SetVoltage(units::volt_t{ 0 });
+    }
 
     // Pivot up (Left Bumper)
     if (m_operatorController.GetLeftY() > 0.1) {
