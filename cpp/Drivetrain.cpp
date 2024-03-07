@@ -60,14 +60,14 @@ void Drivetrain::Drive( units::meters_per_second_t xSpeed,
    if ( 0 == iCallCount%50 )
    {
       //      auto [distance0, angle0] = m_frontLeft.GetPosition();
-              auto [distance1, angle1] = m_frontRight.GetPosition();
+      //      auto [distance1, angle1] = m_frontRight.GetPosition();
       //      auto [distance2, angle2] = m_backRight.GetPosition();
       //      auto [distance3, angle3] = m_backLeft.GetPosition();
 
       //      std::cout << "FrontLeft: " << distance0.value() << ", " <<
       //                                angle0.Degrees().value() << std::endl;
-              std::cout << "FrontRight: " << distance1.value() << ", " <<
-                                         angle1.Degrees().value() << std::endl;
+      //      std::cout << "FrontRight: " << distance1.value() << ", " <<
+      //                                 angle1.Degrees().value() << std::endl;
       //      std::cout << "BackRight: " << distance2.value() << ", " <<
       //                                angle2.Degrees().value() << std::endl;
       //      std::cout << "BackLeft: " << distance3.value() << ", " <<

@@ -40,7 +40,7 @@
 #include <iostream>
 
 //#define SAFETY_LIMITS 1;
-//#define AUTO;
+//#define AUTO 1;
 
 
 //April Tag Variables
@@ -59,7 +59,7 @@ static cs::CvSink cvSink;
 
 //Global Control Variables
 static bool invertContols = false;
-//static cs::UsbCamera selectedCamera = camera1;
+static cs::UsbCamera selectedCamera = camera1;
 
 //Note Sensor
 static bool noteInShooter = false;
@@ -533,7 +533,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
 #ifndef AUTO    
     std::cout << DriveToPose({ 
-                  (units::foot_t) 2.0,
+                  (units::foot_t) 4.0,
                   (units::foot_t) 0.0,
                   (units::degree_t) 0.0
                 }, false)
@@ -544,7 +544,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     switch (poseState) {
       case 0: {
         if (DriveToPose({ 
-              (units::foot_t) 2.0,
+              (units::foot_t) 4.0,
               (units::foot_t) 0.0,
               (units::degree_t) 0.0
             }, false)) {
@@ -554,12 +554,17 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       }
       case 1: {
         if (DriveToPose({ 
-              (units::foot_t) 2.0,
+              (units::foot_t) -4.0,
               (units::foot_t) 0.0,
               (units::degree_t) 0.0
             }, false)) {
           poseState++;
         }
+        break;
+      }
+      case 2: {
+        m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0 });
+        m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0 });
         break;
       }
     }
@@ -590,7 +595,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       m_RightClimberMotor.SetVoltage(units::volt_t{ 0 });
     }
     if (m_operatorController.GetLeftTriggerAxis() > 0.3) {
-      m_LeftClimberMotor.SetVoltage( units::volt_t{ -6.0*m_operatorController.GetLeftTriggerAxis()*goReverse });
+      m_LeftClimberMotor.SetVoltage( units::volt_t{ 6.0*m_operatorController.GetLeftTriggerAxis()*goReverse });
     } else {
       m_LeftClimberMotor.SetVoltage(units::volt_t{ 0 });
     }
@@ -613,9 +618,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   // Slew rate limiters to make joystick inputs more gentle; 1/3 sec from 0
   // to 1.
-  frc::SlewRateLimiter<units::scalar> m_xspeedLimiter{3 / 1_s};
-  frc::SlewRateLimiter<units::scalar> m_yspeedLimiter{3 / 1_s};
-  frc::SlewRateLimiter<units::scalar> m_rotLimiter{   3 / 1_s};
+  frc::SlewRateLimiter<units::scalar> m_xspeedLimiter{10 / 1_s};
+  frc::SlewRateLimiter<units::scalar> m_yspeedLimiter{10 / 1_s};
+  frc::SlewRateLimiter<units::scalar> m_rotLimiter{   10 / 1_s};
   
    // Separate the slew rates for driving during autonomous
    frc::SlewRateLimiter<units::scalar> m_xspeedLimiterA{ 5 / 1_s};
@@ -678,15 +683,20 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     */
 
   
-  // Swap Camera / Invert Controls (X)
+  // <Swap Camera> / Invert Controls (X)
   if (m_driverController.GetXButton()) {
-    cvSink.SetSource(camera2);
-    invertContols = !invertContols; // swaps controls direction
-    fieldRelative = false;
+    // if (selectedCamera == camera1) {
+    //   selectedCamera = camera2;
+    // } else {
+    //   selectedCamera = camera1;
+    // }
+    // cvSink.SetSource(selectedCamera);
+    //invertContols = !invertContols; // swaps controls direction
+    //fieldRelative = false;
   }
 
   // Relative Switch (A)
-  fieldRelative = !m_driverController.GetRightTriggerAxis();
+  //fieldRelative = !m_driverController.GetRightTriggerAxis();
 
   // Look To April Tag (Left Bumper)
   if (m_driverController.GetLeftBumper()) {
@@ -697,35 +707,63 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   // Look / Go To April Tag (Right Bumper)
   if (m_driverController.GetRightBumper()) {
-    rot = -faceAprilTag;
-    fieldRelative = false;
-    ySpeed = (units::velocity::meters_per_second_t) desiredDist * 5; // 5 meters per second
+    //rot = -faceAprilTag;
+    //fieldRelative = false;
+    //ySpeed = (units::velocity::meters_per_second_t) desiredDist * 5; // 5 meters per second
   }
 
-  // Reset Position (Y)
+  // Reset Gyro and Position (Y)
   if (m_driverController.GetYButton()) {
     m_swerve.Reset();
   }
 
   //Note Tracking (???)
     
+  //we'll get here
 
-
-  // Brake (B)
+  // Brake (B) and drive
   m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_driverController.GetBButton());
 
   }
 
   void OperatorControls() {
+    FILE *fptr = NULL;
+    static int iCallCount = 0;
+    iCallCount++;
+    if (0 == iCallCount) {
+      fptr = fopen("/tmp/log.txt", "a");
+    }
+
     // Intake (Right Bumper)
-    if (m_operatorController.GetRightBumper() && !noteInShooter) {
-      m_IntakeMotor.SetVoltage(units::volt_t{ -9.0 });
+    if (m_operatorController.GetRightBumper()/* && !noteInShooter*/) {
+      m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+      if (0 == iCallCount%2) {
+        
+        // std::cout << "current outputery: "
+        //           << m_IntakeMotor.GetOutputCurrent()
+        //           << ",  current stator: "
+        //           << m_IntakeMotor.GetStatorCurrent()
+        //           << std::endl;
+
+        fprintf(fptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
+      }
     } 
     // Reverse Intake (X)
     else if (m_operatorController.GetXButton()) {
       m_IntakeMotor.SetVoltage(units::volt_t{ 9.0 });
+      if (0 == iCallCount%2) {
+        
+        // std::cout << "current outputery: "
+        //           << m_IntakeMotor.GetOutputCurrent()
+        //           << ",  current stator: "
+        //           << m_IntakeMotor.GetStatorCurrent()
+        //           << std::endl;
+
+        fprintf(fptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
+      }
     } else {
       m_IntakeMotor.SetVoltage(units::volt_t{0});
+
     };
 
     // Shooter (Left Bumper)
@@ -733,14 +771,15 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0 });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0 });
       //once shooter reaches full power
-      if (m_LeftShooterMotorEncoder.GetVelocity() > 4000.0) {
+      /*if (m_LeftShooterMotorEncoder.GetVelocity() > 4000.0) {
         m_IntakeMotor.SetVoltage(units::volt_t{ -6.0 });
-      }
+      }*/
       std::cout << "Lshooter:"
                 << m_LeftShooterMotorEncoder.GetVelocity()
                 << "Rshooter:"
                 << m_RightShooterMotorEncoder.GetVelocity()
                 << std::endl;
+      //fprintf(fptr, "rmp: %f\n", m_IntakeMotor.GetOutputCurrent());
     } else {
       m_LeftShooterMotor.SetVoltage( units::volt_t{ 0 });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 0 });
@@ -753,7 +792,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       m_RightClimberMotor.SetVoltage(units::volt_t{ 0 });
     }
     if (m_operatorController.GetLeftTriggerAxis() > 0.3) {
-      m_LeftClimberMotor.SetVoltage( units::volt_t{ -6.0*m_operatorController.GetLeftTriggerAxis() });
+      m_LeftClimberMotor.SetVoltage( units::volt_t{ 6.0*m_operatorController.GetLeftTriggerAxis() }); //left climber goes other way
     } else {
       m_LeftClimberMotor.SetVoltage(units::volt_t{ 0 });
     }
@@ -846,6 +885,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
 #ifndef RUNNING_FRC_TESTS
 int main() {
+  std::cout << "I am rat I am a theif I will steal your ethernet cable -The Rat";
   return frc::StartRobot<Robot>();
 }
 #endif
