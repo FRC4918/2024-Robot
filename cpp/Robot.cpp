@@ -727,12 +727,12 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   }
 
   void OperatorControls() {
-    FILE *fptr = NULL;
+    //FILE *fptr = NULL;
     static int iCallCount = 0;
     iCallCount++;
-    if (0 == iCallCount) {
-      fptr = fopen("/tmp/log.txt", "a");
-    }
+    // if (0 == iCallCount) {
+    //   fptr = fopen("/tmp/log.txt", "a");
+    // }
 
     // Intake (Right Bumper)
     if (m_operatorController.GetRightBumper()/* && !noteInShooter*/) {
@@ -745,7 +745,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         //           << m_IntakeMotor.GetStatorCurrent()
         //           << std::endl;
 
-        fprintf(fptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
+        //fprintf(fptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
       }
     } 
     // Reverse Intake (X)
@@ -759,7 +759,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         //           << m_IntakeMotor.GetStatorCurrent()
         //           << std::endl;
 
-        fprintf(fptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
+        //fprintf(fptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
       }
     } else {
       m_IntakeMotor.SetVoltage(units::volt_t{0});
