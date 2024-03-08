@@ -836,8 +836,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
     // Shooter (Left Bumper)
     if (m_operatorController.GetLeftBumper()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{ -9.0 });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 6.0 });
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ -8.0 });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 8.0 });
       //once shooter reaches full power
       /*if (m_LeftShooterMotorEncoder.GetVelocity() > 4000.0) {
         m_IntakeMotor.SetVoltage(units::volt_t{ -6.0 });
