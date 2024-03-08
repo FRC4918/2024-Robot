@@ -26,6 +26,7 @@
 #include <frc/apriltag/AprilTagDetector.h>
 #include <frc/apriltag/AprilTagPoseEstimator.h>
 #include <frc/geometry/Transform3d.h>
+#include <frc/DriverStation.h>
 #include <networktables/IntegerArrayTopic.h>
 #include <networktables/NetworkTableInstance.h>
 #include <opencv2/core/core.hpp>
@@ -60,6 +61,7 @@ static cs::CvSink cvSink;
 //Global Control Variables
 static bool invertContols = false;
 static cs::UsbCamera selectedCamera = camera1;
+static int ra; // Reversed auto, 1 for red, -1 for blue
 
 //Note Sensor
 static bool noteInShooter = false;
@@ -90,6 +92,9 @@ WPI_VictorSPX m_RightClimberMotor{4};
 
 //NOTE SENSOR
 frc::DigitalInput shooterDIO{0};
+
+//FILE POINTER (for log file on roborio)
+FILE *logfptr = NULL;
 
 
    /*
@@ -246,66 +251,112 @@ frc::DigitalInput shooterDIO{0};
         units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
         desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
         
-        
-        switch (tagId) {
-          //SPEAKERS
-          case 4:
-          case 7: {
-            //tag rotation
-            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+        if (frc::DriverStation::kRed == frc::DriverStation::GetAlliance()) {
+          switch (tagId) {
+            case 4: {
+              printf("saw tag 4 (Red team)");
+              // Tag distance (Z-Axis)
+              targetDist = 4.572; // Distance we want to be from april tag
+              desiredDist = (double) tagDist - targetDist;
+              // Tag rotation
+              units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
+              desiredYaw = (double) tagBearing; // Writes desired yaw to be tag location
+              break;
+            }
 
-            //tag distance (z axis)
-            targetDist = 4.572; // distance we want to be from april tag
-            desiredDist = (double) tagDist - targetDist;
-            break;
+            //AMPS
+            case 5: {
+              // Tag distance (z axis)
+              targetDist = 1.0; // Distance we want to be from april tag
+              desiredDist = (double) tagDist - targetDist;
+              // Tag rotation
+              units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
+              desiredYaw = (double) tagBearing; // Writes desired yaw to be tag location
+              break;
+            }
+
+            //SOURCES
+            case 10: {
+              // Tag distance (z axis)
+              targetDist = 1.0; // Distance we want to be from april tag
+              desiredDist = (double) tagDist - targetDist;
+              // Tag rotation
+              units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
+              desiredYaw = (double) tagBearing; // Writes desired yaw to be tag location
+              break;
+            }
+
+            //STAGES
+            case 11:
+            case 12:
+            case 13: {
+              // Tag distance (z axis)
+              targetDist = 1.5; // Distance we want to be from april tag
+              desiredDist = (double) tagDist - targetDist;
+              // Tag rotation
+              units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
+              desiredYaw = (double) tagBearing; // Writes desired yaw to be tag location
+              break;
+            }
+            default: {
+
+            }
           }
 
-          //AMPS
-          case 6:
-          case 5: {
-            //tag rotation
-            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
 
-            //tag distance (z axis)
-            targetDist = 1.0; // distance we want to be from april tag
-            desiredDist = (double) tagDist - targetDist;
-            break;
-          }
+        } else if (frc::DriverStation::kBlue == frc::DriverStation::GetAlliance()) {
+          switch (tagId) {
+            case 7: {
+              printf("saw tag 7 (Blue team)");
+              // Tag distance (z axis)
+              targetDist = 4.572; // Distance we want to be from april tag
+              desiredDist = (double) tagDist - targetDist;
+              // Tag rotation
+              units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
+              desiredYaw = (double) tagBearing; // Writes desired yaw to be tag location
+              break;
+            }
 
-          //SOURCES
-          case 10:
-          case 1: {
-            //tag rotation
-            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+            //AMPS
+            case 6: {
+              // Tag distance (z axis)
+              targetDist = 1.0; // Distance we want to be from april tag
+              desiredDist = (double) tagDist - targetDist;
+              // Tag rotation
+              units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
+              desiredYaw = (double) tagBearing; // Writes desired yaw to be tag location
+              break;
+            }
 
-            //tag distance (z axis)
-            targetDist = 1.0; // distance we want to be from april tag
-            desiredDist = (double) tagDist - targetDist;
-            break;
-          }
+            //SOURCES
+            case 10: {
+              // Tag distance (z axis)
+              targetDist = 1.0; // Distance we want to be from april tag
+              desiredDist = (double) tagDist - targetDist;
+              // Tag rotation
+              units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
+              desiredYaw = (double) tagBearing; // Writes desired yaw to be tag location
+              break;
+            }
 
-          //STAGES
-          case 11:
-          case 12:
-          case 13:
-          case 14:
-          case 15:
-          case 16: {
-            targetDist = 1.5; // distance we want to be from april tag
-            units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-            desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
-            //tag distance (z axis)
-            desiredDist = (double) tagDist - targetDist;
-            break;
-          }
-          default: {
+            //STAGES
+            case 14:
+            case 15:
+            case 16: {
+              // Tag distance (z axis)
+              targetDist = 1.0; // Distance we want to be from april tag
+              desiredDist = (double) tagDist - targetDist;
+              // Tag rotation
+              units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
+              desiredYaw = (double) tagBearing; // Writes desired yaw to be tag location
+              break;
+            }
+            default: {
 
+            }
           }
         }
-        
+
       }
 
 
@@ -478,6 +529,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
  public:
  void RobotInit() override {
+    std::cout << "I am a rat I am a theif I will still your ethernet cable. - The Rat"
+              << std::endl;
 
     // We need to run our vision program in a separate thread.
     // If not run separately (in parallel), our robot program will never
@@ -517,7 +570,14 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   }
 
   void AutonomousInit() override {
+    // Reversed auto, 1 for red, -1 for blue
+    ra = (frc::DriverStation::kRed == frc::DriverStation::GetAlliance()) ? 1 : -1; // :)
+
+
+    logfptr = fopen("/home/lvuser/RoborioLogAUTOnomous2024.txt", "a");
     m_swerve.Reset();
+
+
   }
 
   void AutonomousPeriodic() override {
@@ -544,22 +604,20 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     switch (poseState) {
       case 0: {
         if (DriveToPose({ 
-              (units::foot_t) 4.0,
-              (units::foot_t) 0.0,
-              (units::degree_t) 0.0
-            }, false)) {
-          poseState++;
-        }
+                   (units::foot_t) 4.0,
+              ra * (units::foot_t) 0.0,
+              ra * (units::degree_t) 0.0
+            }, false)) { poseState++; }
+
         break;
       }
       case 1: {
         if (DriveToPose({ 
-              (units::foot_t) -4.0,
-              (units::foot_t) 0.0,
-              (units::degree_t) 0.0
-            }, false)) {
-          poseState++;
-        }
+                   (units::foot_t) -4.0,
+              ra * (units::foot_t) 0.0,
+              ra * (units::degree_t) 0.0
+            }, false)) { poseState++; }
+
         break;
       }
       case 2: {
@@ -575,6 +633,11 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     
     m_swerve.UpdateOdometry();
   }
+  
+  void AutonomousExit() override {
+    fclose(logfptr);
+  }
+
 
   void TestInit() override {
     
@@ -601,6 +664,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     }
   }
 
+  void TeleopInit() override {
+    logfptr = fopen("/home/lvuser/RoborioLogTeleop2024.txt", "a");
+  }
 
   void TeleopPeriodic() override {
     noteInShooter = !shooterDIO.Get();
@@ -696,11 +762,12 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   }
 
   // Relative Switch (A)
-  //fieldRelative = !m_driverController.GetRightTriggerAxis();
+  fieldRelative = !m_driverController.GetAButton();
 
   // Look To April Tag (Left Bumper)
   if (m_driverController.GetLeftBumper()) {
     rot = -faceAprilTag;
+    fieldRelative = true;
     // std::cout << (double) faceAprilTag
     //           << std::endl;
   }
@@ -727,12 +794,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   }
 
   void OperatorControls() {
-    //FILE *fptr = NULL;
     static int iCallCount = 0;
     iCallCount++;
-    // if (0 == iCallCount) {
-    //   fptr = fopen("/tmp/log.txt", "a");
-    // }
+  
 
     // Intake (Right Bumper)
     if (m_operatorController.GetRightBumper()/* && !noteInShooter*/) {
@@ -745,7 +809,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         //           << m_IntakeMotor.GetStatorCurrent()
         //           << std::endl;
 
-        //fprintf(fptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
+        if (NULL != logfptr) {
+          fprintf(logfptr, "amps: %3.0f\n", m_IntakeMotor.GetOutputCurrent());
+        }
       }
     } 
     // Reverse Intake (X)
@@ -759,7 +825,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         //           << m_IntakeMotor.GetStatorCurrent()
         //           << std::endl;
 
-        //fprintf(fptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
+        if (NULL != logfptr) {
+          fprintf(logfptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
+        }
       }
     } else {
       m_IntakeMotor.SetVoltage(units::volt_t{0});
@@ -768,8 +836,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
     // Shooter (Left Bumper)
     if (m_operatorController.GetLeftBumper()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0 });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0 });
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ -9.0 });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 6.0 });
       //once shooter reaches full power
       /*if (m_LeftShooterMotorEncoder.GetVelocity() > 4000.0) {
         m_IntakeMotor.SetVoltage(units::volt_t{ -6.0 });
@@ -779,7 +847,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
                 << "Rshooter:"
                 << m_RightShooterMotorEncoder.GetVelocity()
                 << std::endl;
-      //fprintf(fptr, "rmp: %f\n", m_IntakeMotor.GetOutputCurrent());
+        //if (NULL != logfptr) {
+        //  fprintf(logfptr, "rmp: %f\n", m_IntakeMotor.GetOutputCurrent());
+        //}
     } else {
       m_LeftShooterMotor.SetVoltage( units::volt_t{ 0 });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 0 });
@@ -822,6 +892,10 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       //m_operatorController.SetRumble(frc::GenericHID::RumbleType::kBothRumble, 0.5);
     }
     
+  }
+
+  void TeleopExit() override {
+    fclose(logfptr);
   }
 
   bool DriveToPose( frc::Pose2d DestinationPose, bool bFreezeDriveMotors ) {
@@ -885,7 +959,6 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
 #ifndef RUNNING_FRC_TESTS
 int main() {
-  std::cout << "I am rat I am a theif I will steal your ethernet cable -The Rat";
   return frc::StartRobot<Robot>();
 }
 #endif
