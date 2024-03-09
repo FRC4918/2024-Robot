@@ -694,17 +694,22 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
    frc::SlewRateLimiter<units::scalar> m_rotLimiterA{    5 / 1_s};
 
   void DriveWithJoystick(bool fieldRelative) {
+    static auto maxspeedicancontrolwithoutitbeingaconstant = Drivetrain::kMaxSpeed;
+    // SLOOOOOOWMODE
+    if (m_driverController.GetRightTriggerAxis() > 0.1) {
+      maxspeedicancontrolwithoutitbeingaconstant = (units::velocity::meters_per_second_t) 2.0;
+    }
     // Get the x speed. We are inverting this because Xbox controllers return
     // negative values when we push forward.
     const auto xSpeed = -m_xspeedLimiter.Calculate(
-                            frc::ApplyDeadband(m_driverController.GetLeftY(), 0.1)) *
+                            frc::ApplyDeadband(m_driverController.GetLeftY(), 0.2)) *
                         Drivetrain::kMaxSpeed;
 
     // Get the y speed or sideways/strafe speed. We are inverting this because
     // we want a positive value when we pull to the left. Xbox controllers
     // return positive values when you pull to the right by default.
     auto ySpeed = -m_yspeedLimiter.Calculate(
-                            frc::ApplyDeadband(m_driverController.GetLeftX(), 0.1)) *
+                            frc::ApplyDeadband(m_driverController.GetLeftX(), 0.2)) *
                         Drivetrain::kMaxSpeed;
 
 
@@ -713,7 +718,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     // mathematics). Xbox controllers return positive values when you pull to
     // the right by default.
     auto rot = -m_rotLimiter.Calculate(
-                         frc::ApplyDeadband(m_driverController.GetRightX(), 0.1)) *
+                         frc::ApplyDeadband(m_driverController.GetRightX(), 0.2)) *
                      Drivetrain::kMaxAngularSpeed;
 
 
@@ -783,6 +788,10 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   if (m_driverController.GetYButton()) {
     m_swerve.Reset();
   }
+  
+
+
+
 
   //Note Tracking (???)
     
@@ -791,7 +800,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   // Brake (B) and drive
   m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_driverController.GetBButton());
 
+  // fprintf(logfptr, "SH RPM: %5.0f\n", m_swerve.);
   }
+
 
   void OperatorControls() {
     static int iCallCount = 0;
@@ -799,20 +810,11 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   
 
     // Intake (Right Bumper)
-    if (m_operatorController.GetRightBumper()/* && !noteInShooter*/) {
+    if (m_operatorController.GetRightBumper() && (!noteInShooter || 
+                                                 (m_LeftShooterMotorEncoder.GetVelocity() > 3000.0 && 
+                                                  m_operatorController.GetLeftBumper()))) {
       m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
-      if (0 == iCallCount%2) {
-        
-        // std::cout << "current outputery: "
-        //           << m_IntakeMotor.GetOutputCurrent()
-        //           << ",  current stator: "
-        //           << m_IntakeMotor.GetStatorCurrent()
-        //           << std::endl;
 
-        if (NULL != logfptr) {
-          fprintf(logfptr, "amps: %3.0f\n", m_IntakeMotor.GetOutputCurrent());
-        }
-      }
     } 
     // Reverse Intake (X)
     else if (m_operatorController.GetXButton()) {
@@ -838,6 +840,30 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     if (m_operatorController.GetLeftBumper()) {
       m_LeftShooterMotor.SetVoltage(units::volt_t{ -8.0 });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 8.0 });
+      //once shooter reaches full power
+      /*if (m_LeftShooterMotorEncoder.GetVelocity() > 4000.0) {
+        m_IntakeMotor.SetVoltage(units::volt_t{ -6.0 });
+      }*/
+      std::cout << "Lshooter:"
+                << m_LeftShooterMotorEncoder.GetVelocity()
+                << "Rshooter:"
+                << m_RightShooterMotorEncoder.GetVelocity()
+                << std::endl;
+        //if (NULL != logfptr) {
+        //  fprintf(logfptr, "rmp: %f\n", m_IntakeMotor.GetOutputCurrent());
+        //}
+        if (m_LeftShooterMotorEncoder.GetVelocity() > 3000.0 && noteInShooter) {
+          m_IntakeMotor.SetVoltage(units::volt_t{- 12.0 });
+        }
+    } else {
+      m_LeftShooterMotor.SetVoltage( units::volt_t{ 0 });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 0 });
+    };
+
+    // REVERSE SHOOTER INCASE LODGED (REMOVE IF NOT NESSASARY)
+    if (m_operatorController.GetAButton()) {
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ 2.0 });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ -2.0 });
       //once shooter reaches full power
       /*if (m_LeftShooterMotorEncoder.GetVelocity() > 4000.0) {
         m_IntakeMotor.SetVoltage(units::volt_t{ -6.0 });

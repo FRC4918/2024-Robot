@@ -78,7 +78,7 @@ private:
        {kModuleMaxAngularVelocity, kModuleMaxAngularAcceleration}};
                                                                     // was 1.0
    frc::SimpleMotorFeedforward<units::meters> m_driveFeedforward{0.1_V,
-                                                                 1_V / 1_mps};
+                                                                1_V / 1_mps};
    frc::SimpleMotorFeedforward<units::radians> m_turnFeedforward{
        0.2_V /*was 1.0*/, 0.025_V / 1_rad_per_s};
 };
