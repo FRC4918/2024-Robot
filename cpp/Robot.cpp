@@ -59,7 +59,7 @@ cs::UsbCamera camera2;
 static cs::CvSink cvSink;
 
 //Global Control Variables
-static bool invertContols = false;
+//static bool invertContols = false;
 static cs::UsbCamera selectedCamera = camera1;
 static int ra; // Reversed auto, 1 for red, -1 for blue
 
@@ -91,7 +91,7 @@ WPI_VictorSPX m_LeftClimberMotor{11};
 WPI_VictorSPX m_RightClimberMotor{4};
 
 //NOTE SENSOR
-frc::DigitalInput shooterDIO{0};
+frc::DigitalInput shooterDIO{9};
 
 //FILE POINTER (for log file on roborio)
 FILE *logfptr = NULL;
@@ -256,7 +256,7 @@ FILE *logfptr = NULL;
             case 4: {
               printf("saw tag 4 (Red team)");
               // Tag distance (Z-Axis)
-              targetDist = 4.572; // Distance we want to be from april tag
+              targetDist = 2.642; // Distance we want to be from april tag
               desiredDist = (double) tagDist - targetDist;
               // Tag rotation
               units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
@@ -309,7 +309,7 @@ FILE *logfptr = NULL;
             case 7: {
               printf("saw tag 7 (Blue team)");
               // Tag distance (z axis)
-              targetDist = 4.572; // Distance we want to be from april tag
+              targetDist = 2.642; // Distance we want to be from april tag
               desiredDist = (double) tagDist - targetDist;
               // Tag rotation
               units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // Calculates fixed tag location relative to initial gyro rotation
@@ -694,23 +694,21 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
    frc::SlewRateLimiter<units::scalar> m_rotLimiterA{    5 / 1_s};
 
   void DriveWithJoystick(bool fieldRelative) {
-    static auto maxspeedicancontrolwithoutitbeingaconstant = Drivetrain::kMaxSpeed;
     // SLOOOOOOWMODE
-    if (m_driverController.GetRightTriggerAxis() > 0.1) {
-      maxspeedicancontrolwithoutitbeingaconstant = (units::velocity::meters_per_second_t) 2.0;
-    }
+    double lowGear = m_driverController.GetRightTriggerAxis() > 0.1 ? 0.5 : 1.0;
+
     // Get the x speed. We are inverting this because Xbox controllers return
     // negative values when we push forward.
-    const auto xSpeed = -m_xspeedLimiter.Calculate(
+    auto xSpeed = -m_xspeedLimiter.Calculate(
                             frc::ApplyDeadband(m_driverController.GetLeftY(), 0.2)) *
-                        Drivetrain::kMaxSpeed;
+                        Drivetrain::kMaxSpeed * lowGear;
 
     // Get the y speed or sideways/strafe speed. We are inverting this because
     // we want a positive value when we pull to the left. Xbox controllers
     // return positive values when you pull to the right by default.
     auto ySpeed = -m_yspeedLimiter.Calculate(
                             frc::ApplyDeadband(m_driverController.GetLeftX(), 0.2)) *
-                        Drivetrain::kMaxSpeed;
+                        Drivetrain::kMaxSpeed * lowGear;
 
 
     // Get the rate of angular rotation. We are inverting this because we want a
@@ -719,7 +717,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     // the right by default.
     auto rot = -m_rotLimiter.Calculate(
                          frc::ApplyDeadband(m_driverController.GetRightX(), 0.2)) *
-                     Drivetrain::kMaxAngularSpeed;
+                     Drivetrain::kMaxAngularSpeed * lowGear;
 
 
     //The line below is not working
@@ -746,9 +744,6 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     units::angular_velocity::radians_per_second_t faceAprilTag = (units::angular_velocity::radians_per_second_t) degreesToTurn * M_PI / 180;
     
 
-
-    units::velocity::meters_per_second_t moveToAprilTag;
-    moveToAprilTag = (units::velocity::meters_per_second_t) desiredDist;
     /**
      * Driver Controller
     */
@@ -779,9 +774,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   // Look / Go To April Tag (Right Bumper)
   if (m_driverController.GetRightBumper()) {
-    //rot = -faceAprilTag;
-    //fieldRelative = false;
-    //ySpeed = (units::velocity::meters_per_second_t) desiredDist * 5; // 5 meters per second
+    rot = -faceAprilTag;
+    fieldRelative = false;
+    xSpeed = (units::velocity::meters_per_second_t) desiredDist * 2.0;
   }
 
   // Reset Gyro and Position (Y)
@@ -809,10 +804,14 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     iCallCount++;
   
 
+    std::cout << "shooter sensor: "
+              << shooterDIO.Get()
+              << std::endl;
     // Intake (Right Bumper)
     if (m_operatorController.GetRightBumper() && (!noteInShooter || 
-                                                 (m_LeftShooterMotorEncoder.GetVelocity() > 3000.0 && 
-                                                  m_operatorController.GetLeftBumper()))) {
+                                                 (m_LeftShooterMotorEncoder.GetVelocity() < -3000.0 && 
+                                                  m_operatorController.GetLeftBumper())
+                                                 )) {
       m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
 
     } 
@@ -852,34 +851,16 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         //if (NULL != logfptr) {
         //  fprintf(logfptr, "rmp: %f\n", m_IntakeMotor.GetOutputCurrent());
         //}
-        if (m_LeftShooterMotorEncoder.GetVelocity() > 3000.0 && noteInShooter) {
-          m_IntakeMotor.SetVoltage(units::volt_t{- 12.0 });
-        }
+    }  
+    // REVERSE SHOOTER INCASE LODGED (REMOVE IF NOT NESSASARY)
+    else if (m_operatorController.GetAButton()) {
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ 2.0 });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ -2.0 });
     } else {
       m_LeftShooterMotor.SetVoltage( units::volt_t{ 0 });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 0 });
     };
 
-    // REVERSE SHOOTER INCASE LODGED (REMOVE IF NOT NESSASARY)
-    if (m_operatorController.GetAButton()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{ 2.0 });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ -2.0 });
-      //once shooter reaches full power
-      /*if (m_LeftShooterMotorEncoder.GetVelocity() > 4000.0) {
-        m_IntakeMotor.SetVoltage(units::volt_t{ -6.0 });
-      }*/
-      std::cout << "Lshooter:"
-                << m_LeftShooterMotorEncoder.GetVelocity()
-                << "Rshooter:"
-                << m_RightShooterMotorEncoder.GetVelocity()
-                << std::endl;
-        //if (NULL != logfptr) {
-        //  fprintf(logfptr, "rmp: %f\n", m_IntakeMotor.GetOutputCurrent());
-        //}
-    } else {
-      m_LeftShooterMotor.SetVoltage( units::volt_t{ 0 });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 0 });
-    };
 
     // Climbers (Left and Right Triggers)
     if (m_operatorController.GetRightTriggerAxis() > 0.3) {

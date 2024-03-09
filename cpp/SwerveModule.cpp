@@ -209,9 +209,9 @@ void SwerveModule::SetDesiredState(
    const auto turnFeedforward = m_turnFeedforward.Calculate(
        m_turningPIDController.GetSetpoint().velocity);
 
-   std::cout << "drive rmp: "
+   /*std::cout << "drive rmp: "
              << m_driveEncoder.GetVelocity()
-             << std::endl;
+             << std::endl;*/
    // std::cout << " drive output " << driveOutput;
    // std::cout << " turn output " << turnOutput;
    // std::cout << " drive Feed Forward " << driveFeedforward.m_value;
