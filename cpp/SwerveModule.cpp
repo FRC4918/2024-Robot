@@ -92,8 +92,8 @@ void MotorInitSpark(rev::CANSparkMax &m_motor)
    // Set ramp rate (how fast motor accelerates or decelerates).
    // We may have to try different RampRates here to
    // eliminate drivetrain chattering.
-   m_motor.SetClosedLoopRampRate(0.1);
-   m_motor.SetOpenLoopRampRate(0.1);
+   m_motor.SetClosedLoopRampRate(0.1); //0.1
+   m_motor.SetOpenLoopRampRate(0.1); //0.1
 
    // m_motor.SetIdleMode( rev::CANSparkMax::IdleMode::kCoast );
    m_motor.SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
@@ -117,6 +117,8 @@ SwerveModule::SwerveModule(const int driveMotorCanID,
    MotorInitSpark(m_driveMotor);
    MotorInitSpark(m_turningMotor);
    m_turningMotor.SetSmartCurrentLimit(10, 5, 5000);
+   m_driveMotor.SetClosedLoopRampRate(2.0);
+   m_driveMotor.SetOpenLoopRampRate(2.0);
 
    // Set the distance per pulse for the drive encoder. We can simply use the
    // distance traveled for one rotation of the wheel divided by the encoder

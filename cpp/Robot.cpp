@@ -70,6 +70,7 @@ static bool prevNoteInShooter = false;
 
 //AUTONOMOUS
 static int poseState;
+int iCallCount = 0;
 
 struct sState {
       bool   joyButton[12];
@@ -435,8 +436,8 @@ void MotorInitSpark(rev::CANSparkMax &m_motor)
                  // Set ramp rate (how fast motor accelerates or decelerates).
                  // We may have to try different RampRates here to
                  // eliminate chattering.
-      m_motor.SetClosedLoopRampRate(0.2);
-      m_motor.SetOpenLoopRampRate(0.2);
+      m_motor.SetClosedLoopRampRate(0.2); //0.2
+      m_motor.SetOpenLoopRampRate(0.2); //0.2
 
       // m_motor.SetIdleMode( rev::CANSparkMax::IdleMode::kCoast );
       m_motor.SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
@@ -609,18 +610,21 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     
     logfptr = fopen("/home/lvuser/RoborioLogAUTOnomous2024.txt", "a");
 
+    iCallCount = 0;
+
     // Reset
     m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
     m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
-    poseState = -1;
+    poseState = 0;
     m_swerve.Reset();
 
-
+    // Check which autonomous to use
   }
 
   void AutonomousPeriodic() override {
-    static int iCallCount = 0;
+    static int iCallCountprev = 0;
     iCallCount++;
+    
 
     gyroYawHeading = m_swerve.GetYaw();
     gyroYawRate = m_swerve.GetRate();
@@ -632,7 +636,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
      * AUTONOMOUS STAGES
     */
     switch (poseState) {
-      case -1: {
+      case 0: {
         if (DriveToPose({ 
                    (units::foot_t) 0.0,
               ra * (units::foot_t) 0.0,
@@ -641,7 +645,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
             iCallCount > 20) { poseState++; }
             
       }
-      case 0: {
+      case 1: {
         if (DriveToPose({ 
                    (units::foot_t) -4.0,
               ra * (units::foot_t) 0.0,
@@ -650,22 +654,31 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
         break;
       }
-      case 1: {
-        if (DriveToPose({ 
-                   (units::foot_t) 0.0,
-              ra * (units::foot_t) 0.0,
-              ra * (units::degree_t) 0.0
-            }, false)) { poseState++; }
-
-        break;
-      }
       case 2: {
-        m_LeftShooterMotor.SetVoltage(units::volt_t{ -4.0 });
-        m_RightShooterMotor.SetVoltage(units::volt_t{ 4.0 });
+        m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
+        m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
         m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
                        units::velocity::meters_per_second_t{ 0.0 },
                        units::angular_velocity::radians_per_second_t{ 0.0 }, 
                        false, true);
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+          iCallCountprev = iCallCount;
+          poseState++;
+        }
+        break;
+      }
+      case 3: {
+        if (iCallCountprev + 300 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
+          m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
+          m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
+          m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+          m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
+                       units::velocity::meters_per_second_t{ 0.0 },
+                       units::angular_velocity::radians_per_second_t{ 0.0 }, 
+                       false, true);
+          poseState++;
+        }
         break;
       }
 
@@ -676,6 +689,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
                        false, true);
         m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
         m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
+        m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
       }
     }
     
@@ -721,39 +735,77 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     }
 
 
-    // if (m_Console.) {
+// if (m_Console.) {
     //   std::cout << "AGHAgAGAG"
     //             << std::endl;
     // }
 
+    // PILOT SWITCH 1 (L)
     if (BUTTON_SWITCH1) {
-      if (1 == ra) {
-        std::cout << "feed me raaaaa"
+      if (frc::DriverStation::kRed == frc::DriverStation::GetAlliance()) {
+        std::cout << "BATTERY VOLTAGE RED: "
+                  << frc::DriverStation::GetBatteryVoltage()
                   << std::endl;
       }
-      else if (-1 == ra) {
-        std::cout << "feed me aaaaar"
+      else if (frc::DriverStation::kBlue == frc::DriverStation::GetAlliance()) {
+        std::cout << "BATTERY VOLTAGE BLUE: "
+                  << frc::DriverStation::GetBatteryVoltage()
                   << std::endl;
       }
       else {
-        std::cout << 'feed me :[]'
+        std::cout << "Error: Cannot start OmniSharp because Mono version >=3.10.0 is required"
                   << std::endl;
       }
     }
+
+    // PILOT SWITCH 2
     if (BUTTON_SWITCH2) {
-      std::cout << "feed me x2"
-                << std::endl;
+      if (frc::DriverStation::kRed == frc::DriverStation::GetAlliance()) {
+        std::cout << "RED 1 INITIATED"
+                  << std::endl;
+      }
+      else if (frc::DriverStation::kBlue == frc::DriverStation::GetAlliance()) {
+        std::cout << "BLUE 1 INITIATED"
+                  << std::endl;
+      }
+      else {
+        std::cout << "NO ALLIANCE SELECTED"
+                  << std::endl;
+      }
     }
+
+    // PILOT SWITCH 3
     if (BUTTON_SWITCH3) {
-      std::cout << "im gonna scream"
-                << std::endl;
-    }    
+      if (frc::DriverStation::kRed == frc::DriverStation::GetAlliance()) {
+        std::cout << "RED 2 INITIATED"
+                  << std::endl;
+      }
+      else if (frc::DriverStation::kBlue == frc::DriverStation::GetAlliance()) {
+        std::cout << "BLUE 2 INITIATED"
+                  << std::endl;
+      }
+      else {
+        std::cout << "NO ALLIANCE SELECTED"
+                  << std::endl;
+      }   
+    }
+
+    // PILOT SWITCH 4 (R)
     if (BUTTON_SWITCH4) {
-      std::cout << "ahahhaaghah :("
-                << std::endl;
-      m_driverController.SetRumble(frc::GenericHID::RumbleType::kBothRumble, 0.5);
-    } else {
-      m_driverController.SetRumble(frc::GenericHID::RumbleType::kBothRumble, 0.0);
+      if (frc::DriverStation::kRed == frc::DriverStation::GetAlliance()) {
+        std::cout << "RED 3 INTIATED"
+                  << std::endl;
+        m_driverController.SetRumble(frc::GenericHID::RumbleType::kBothRumble, 0.02);
+      }
+      else if (frc::DriverStation::kBlue == frc::DriverStation::GetAlliance()) {
+        std::cout << "BLUE 3 INITIATED"
+                  << std::endl;
+        m_driverController.SetRumble(frc::GenericHID::RumbleType::kBothRumble, 0.0);
+      }
+      else {
+        std::cout << "NO ALLIANCE SELECTED"
+                  << std::endl;
+      }
     }
   }
 
@@ -922,12 +974,13 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     //           << std::endl;
     // Intake (Right Bumper)
     if (m_operatorController.GetRightBumper() && (!noteInShooter || 
-                                                 (m_LeftShooterMotorEncoder.GetVelocity() < -3000.0 && 
+                                                 (m_LeftShooterMotorEncoder.GetVelocity() < -3100.0 && 
                                                   m_operatorController.GetLeftBumper()) ||
                                                   m_operatorController.GetStartButton() // Override sensor
                                                  )) {
       m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
-
+      std::cout << "IntRun "
+                << std::endl;
     } 
     // Reverse Intake (X)
     else if (m_operatorController.GetXButton()) {
@@ -951,11 +1004,11 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
     // Shooter (Left Bumper)
     if (m_operatorController.GetLeftBumper()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{ -8.0 });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 8.0 });
-      std::cout << "Lshooter:"
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
+      std::cout << "LshootRpm:"
                 << m_LeftShooterMotorEncoder.GetVelocity()
-                << "Rshooter:"
+                << " RshootRpm:"
                 << m_RightShooterMotorEncoder.GetVelocity()
                 << std::endl;
     }  
