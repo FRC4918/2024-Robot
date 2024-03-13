@@ -41,8 +41,8 @@
 #include <ctre/Phoenix.h>
 #include <iostream>
 
-//#define SAFETY_LIMITS 1;
-#define AUTO 1;
+//#define SAFETY_LIMITS 1
+#define AUTO 1
 
 
 //April Tag Variables
@@ -71,6 +71,12 @@ static bool prevNoteInShooter = false;
 //AUTONOMOUS
 static int poseState;
 int iCallCount = 0;
+
+// Auto route poseState position is autonomous switch case
+// Ex. 10, start switch case at case 10, which is the start of a route
+#define AUTO1_START 0
+#define AUTO2_START 100
+#define AUTO3_START 200
 
 struct sState {
       bool   joyButton[12];
@@ -605,21 +611,47 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   }
 
   void AutonomousInit() override {
+    GetAllVariables();
     // Reversed auto, 1 for red, -1 for blue
     ra = (frc::DriverStation::kRed == frc::DriverStation::GetAlliance()) ? 1 : -1; // :)
     
     logfptr = fopen("/home/lvuser/RoborioLogAUTOnomous2024.txt", "a");
 
-    iCallCount = 0;
 
     // Reset
     m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
     m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
-    poseState = 0;
     m_swerve.Reset();
+    iCallCount = 0;
+    poseState = 0;
 
     // Check which autonomous to use
+    // If multiple switches are flipped, prioety goes to smallest number
+    if (BUTTON_SWITCH1) {
+      poseState = AUTO1_START;
+      printf("Auto route 1 started on ");
+      if (1 == ra) printf("red team.\n");
+      else printf("blue team.");
+    }
+    else if (BUTTON_SWITCH2) {
+      poseState = AUTO2_START;
+      printf("Auto route 2 started on ");
+      if (1 == ra) printf("red team.");
+      else printf("blue team.\n");
+    }
+    else if (BUTTON_SWITCH3) {
+      poseState = AUTO3_START;
+      printf("Auto route 3 started on ");
+      if (1 == ra) printf("red team.");
+      else printf("blue team.\n");
+    }
+    else {
+      printf("No auto route selected, defaulting to route #1\n");
+    }
+
   }
+
+
 
   void AutonomousPeriodic() override {
     static int iCallCountprev = 0;
@@ -629,6 +661,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     gyroYawHeading = m_swerve.GetYaw();
     gyroYawRate = m_swerve.GetRate();
     noteInShooter = !shooterDIO.Get();
+    auto faceAprilTag = GetATagVariables();
 
     //DriveWithJoystick(false);
 
@@ -636,7 +669,10 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
      * AUTONOMOUS STAGES
     */
     switch (poseState) {
+
+      // ROUTE #1
       case 0: {
+
         if (DriveToPose({ 
                    (units::foot_t) 0.0,
               ra * (units::foot_t) 0.0,
@@ -647,13 +683,13 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       }
       case 1: {
         if (DriveToPose({ 
-                   (units::foot_t) -4.0,
-              ra * (units::foot_t) 0.0,
-              ra * (units::degree_t) 0.0
-            }, false)) { poseState++; }
+                   (units::foot_t) -3.0,
+              ra * (units::foot_t) 4.0,
+              ra * (units::degree_t) -30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
 
         break;
-      }
+      }    
       case 2: {
         m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
         m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
@@ -661,7 +697,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
                        units::velocity::meters_per_second_t{ 0.0 },
                        units::angular_velocity::radians_per_second_t{ 0.0 }, 
                        false, true);
-        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100) {
+
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
           m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
           iCallCountprev = iCallCount;
           poseState++;
@@ -669,18 +706,78 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         break;
       }
       case 3: {
-        if (iCallCountprev + 300 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
+        if (iCallCountprev + 100 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
           m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
           m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
           m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
-          m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
+          poseState++; 
+        }
+        break;
+      }
+      case 4: {
+        if (DriveToPose({ 
+                   (units::foot_t) -3.0,
+              ra * (units::foot_t) 5.0,
+              ra * (units::degree_t) -60.0
+            }, false)) { 
+              m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
                        units::velocity::meters_per_second_t{ 0.0 },
                        units::angular_velocity::radians_per_second_t{ 0.0 }, 
                        false, true);
+                       poseState++; /*jumps to default to end route*/ iCallCountprev = iCallCount;
+              }
+        break;
+      }
+      case 5: {
+        if (iCallCountprev + 300 <= iCallCount /*|| noteInShooter*/) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+          if (DriveToPose({ 
+                       (units::foot_t) -3.0,
+                  ra * (units::foot_t) 4.0,
+                  ra * (units::degree_t) -60.0
+                }, false)) { iCallCountprev = iCallCount; poseState++; }
+        }
+        break;
+      }
+      case 6: {
+          if (DriveToPose({ 
+                     (units::foot_t) -3.0,
+                ra * (units::foot_t) 4.0,
+                ra * (units::degree_t) -30.0
+              }, false)) {
+            iCallCountprev = iCallCount;
+            poseState++;
+            printf("MADE IT TO CASE 6 yay");
+          }
+        break;
+      }
+      case 7: {
+        m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
+        m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
+        m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
+                       units::velocity::meters_per_second_t{ 0.0 },
+                       units::angular_velocity::radians_per_second_t{ 0.0 }, 
+                       false, true);
+
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+          iCallCountprev = iCallCount;
           poseState++;
         }
         break;
       }
+      // ROUTE #1 END
+
+      // ROUTE #2
+      case 100: {
+        m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
+                       units::velocity::meters_per_second_t{ 0.0 },
+                       faceAprilTag, 
+                       false, true);
+        poseState = -1;
+        break;
+      }
+
 
       default: {
         m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
@@ -867,28 +964,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
                      Drivetrain::kMaxAngularSpeed * lowGear;
 
 
-    //The line below is not working
-    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod());
-    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, GetPeriod() > (units::time::second_t) 0);
-    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative);
-      
-    //m_swerve.Drive(xSpeed, ySpeed, rot, fieldRelative, m_driverController.GetBButton());
 
-
-
-    gyroYawHeading = m_swerve.GetYaw();
-    gyroYawRate = m_swerve.GetRate();
-
-    double dEventualYaw = (double) gyroYawHeading + (0.5 / 600.0) * (double) gyroYawRate * std::abs((double) gyroYawRate); // accounts for overshooting
-
-    //find the shortest degrees to face tag
-    int degreesToTurn = (int) ((double) dEventualYaw - desiredYaw) % 360;
-    if (degreesToTurn > 180) degreesToTurn -= 360;
-    if (degreesToTurn < -180) degreesToTurn += 360;
-
-    // Converts degrees from vision thread to radians per second.
-    // Also converts 
-    units::angular_velocity::radians_per_second_t faceAprilTag = (units::angular_velocity::radians_per_second_t) degreesToTurn * M_PI / 180;
+    auto faceAprilTag = GetATagVariables();
     
 
     /**
@@ -954,7 +1031,10 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   }
 
 
+
+
   void OperatorControls() {
+    static bool stopIntake = false;
     static int iCallCount = 0;
     iCallCount++;
   
@@ -972,15 +1052,26 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     // std::cout << "shooter sensor: "
     //           << shooterDIO.Get()
     //           << std::endl;
+
+
+    if (noteInShooter) {
+      stopIntake = true;
+      //printf("AAAGHH STOP THE NOTE Please\n");
+    }
+    //Reset stopIntake
+    if (!m_operatorController.GetRightBumper()) {
+      stopIntake = false;
+    }
+
     // Intake (Right Bumper)
-    if (m_operatorController.GetRightBumper() && (!noteInShooter || 
+    if (m_operatorController.GetRightBumper() && (!stopIntake || 
                                                  (m_LeftShooterMotorEncoder.GetVelocity() < -3100.0 && 
                                                   m_operatorController.GetLeftBumper()) ||
                                                   m_operatorController.GetStartButton() // Override sensor
                                                  )) {
       m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
-      std::cout << "IntRun "
-                << std::endl;
+      // std::cout << "IntRun "
+      //           << std::endl;
     } 
     // Reverse Intake (X)
     else if (m_operatorController.GetXButton()) {
@@ -999,7 +1090,6 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       }
     } else {
       m_IntakeMotor.SetVoltage(units::volt_t{0});
-
     };
 
     // Shooter (Left Bumper)
@@ -1146,6 +1236,22 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       iCallCount++;
       return bReturnValue;
    }
+
+  units::angular_velocity::radians_per_second_t GetATagVariables() {
+    gyroYawHeading = m_swerve.GetYaw();
+    gyroYawRate = m_swerve.GetRate();
+
+    double dEventualYaw = (double) gyroYawHeading + (0.5 / 600.0) * (double) gyroYawRate * std::abs((double) gyroYawRate); // accounts for overshooting
+
+    //find the shortest degrees to face tag
+    int degreesToTurn = (int) ((double) dEventualYaw - desiredYaw) % 360;
+    if (degreesToTurn > 180) degreesToTurn -= 360;
+    if (degreesToTurn < -180) degreesToTurn += 360;
+
+    // Converts degrees from vision thread to radians per second.
+    // Also converts 
+    return (units::angular_velocity::radians_per_second_t) degreesToTurn * M_PI / 180;
+  }
 };
 
 #ifndef RUNNING_FRC_TESTS
