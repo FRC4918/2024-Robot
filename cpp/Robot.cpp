@@ -71,6 +71,9 @@ static bool prevNoteInShooter = false;
 //AUTONOMOUS
 static int poseState;
 int iCallCount = 0;
+static frc::Pose2d startPose = { (units::foot_t) 0.0,
+                                 (units::foot_t) 0.0,
+                                 (units::degree_t) 0.0 };
 
 // Auto route poseState position is autonomous switch case
 // Ex. 10, start switch case at case 10, which is the start of a route
@@ -118,9 +121,8 @@ frc::DigitalInput shooterDIO{9};
 //FILE POINTER (for log file on roborio)
 FILE *logfptr = NULL;
 
-//JOYSTICK
+//JOYSTICKint
 frc::Joystick m_Console{3};
-
 
    /*
     * The VisionThread() function demonstrates the detection of AprilTags.
@@ -623,29 +625,48 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
     m_swerve.Reset();
     iCallCount = 0;
-    poseState = 0;
 
     // Check which autonomous to use
     // If multiple switches are flipped, prioety goes to smallest number
     if (BUTTON_SWITCH1) {
       poseState = AUTO1_START;
+      m_swerve.ResetPose({ (units::foot_t) 0.0,
+                           (units::foot_t) 0.0,
+                           (units::degree_t) 60.0 });
+
+
       printf("Auto route 1 started on ");
       if (1 == ra) printf("red team.\n");
       else printf("blue team.");
+      
     }
     else if (BUTTON_SWITCH2) {
       poseState = AUTO2_START;
+      m_swerve.ResetPose({ (units::foot_t) 0.0,
+                           (units::foot_t) 0.0,
+                           (units::degree_t) 0.0 });
+      
+
       printf("Auto route 2 started on ");
       if (1 == ra) printf("red team.");
       else printf("blue team.\n");
     }
     else if (BUTTON_SWITCH3) {
       poseState = AUTO3_START;
+      m_swerve.ResetPose({ (units::foot_t) 0.0,
+                           (units::foot_t) 0.0,
+                           (units::degree_t) 0.0 });
+
+
       printf("Auto route 3 started on ");
       if (1 == ra) printf("red team.");
       else printf("blue team.\n");
     }
     else {
+      poseState = AUTO1_START;
+      m_swerve.ResetPose({ (units::foot_t) 0.0,
+                           (units::foot_t) 0.0,
+                           (units::degree_t) 60.0 });
       printf("No auto route selected, defaulting to route #1\n");
     }
 
@@ -672,25 +693,35 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
       // ROUTE #1
       case 0: {
-
         if (DriveToPose({ 
                    (units::foot_t) 0.0,
               ra * (units::foot_t) 0.0,
-              ra * (units::degree_t) 0.0
+              ra * (units::degree_t) 60.0
             }, false) && 
             iCallCount > 20) { poseState++; }
-            
+
       }
+      break;
+
       case 1: {
         if (DriveToPose({ 
-                   (units::foot_t) -3.0,
-              ra * (units::foot_t) 4.0,
-              ra * (units::degree_t) -30.0
+                   (units::foot_t) -5.0,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 60.0 // -30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
+      }
+      break;
 
-        break;
-      }    
       case 2: {
+        if (DriveToPose({ 
+                   (units::foot_t) -5.0,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 30.0 // -30.0
+            }, false)) { poseState=5; iCallCountprev = iCallCount; }
+      } 
+      break;
+
+      case 3: {
         m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
         m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
         m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
@@ -703,69 +734,100 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
           iCallCountprev = iCallCount;
           poseState++;
         }
-        break;
       }
-      case 3: {
+      break;
+
+      case 4: {
+        if (iCallCountprev + 100 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
+          m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
+          m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
+          //m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+          poseState++; 
+        }
+      }
+      break;
+      
+      case 5: {
+        if (DriveToPose({ 
+                   (units::foot_t) -5.0, //-3.0
+              ra * (units::foot_t) -1.0, //5.0
+              ra * (units::degree_t) 0.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; printf("Moving to step 6\n"); }
+      }
+      break;
+
+      case 6: {
+        if (DriveToPose({ 
+                   (units::foot_t) -8.0, //-3.0
+              ra * (units::foot_t) -1.0, //5.0
+              ra * (units::degree_t) 0.0
+            }, false)) { poseState = -1; iCallCountprev = iCallCount; printf("Moving to step 7\n"); }
+      }
+      break;
+      // case 6: {
+      //   if (DriveToPose({ 
+      //              (units::foot_t) -5.2, //-3.0 //-3.9 //-4.9
+      //         ra * (units::foot_t) 5.1, //5.0 //4.6 //4.9
+      //         ra * (units::degree_t) -60.0
+      //       }, false)) {
+      //         /*m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
+      //                  units::velocity::meters_per_second_t{ 0.0 },
+      //                  units::angular_velocity::radians_per_second_t{ 0.0 }, 
+      //                  false, true);*/
+      //         iCallCountprev = iCallCount;
+      //       }
+             
+            
+        // if (iCallCountprev + 300 <= iCallCount || noteInShooter) {
+        //   m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+        // }
+        // if (DriveToPose({ 
+        //             (units::foot_t) -3.7, //-3.6
+        //         ra * (units::foot_t) 3.3, //-3.6 //3.2
+        //         ra * (units::degree_t) -25.0 //30 //-25.0
+        //     }, false)) { iCallCountprev = iCallCount; /*poseState++;*/ }
+        //     m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+        //    poseState = -1;
+        // break;
+      //}
+      case 7: {
+          if (DriveToPose({ 
+                     (units::foot_t) -3.7,
+                ra * (units::foot_t) 3.3,
+                ra * (units::degree_t) -25.0
+              }, false)) {
+            iCallCountprev = iCallCount;
+            printf("MADE IT TO CASE 6 yay");
+            poseState++;
+          }
+      }
+      break;
+
+      case 8: {
+        m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
+        m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
+        m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
+                       units::velocity::meters_per_second_t{ 0.0 },
+                       units::angular_velocity::radians_per_second_t{ 0.0 }, 
+                       false, true);
+
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+          iCallCountprev = iCallCount;
+          poseState++;
+        }
+      }
+      break;
+
+      case 9: {
         if (iCallCountprev + 100 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
           m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
           m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
           m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
           poseState++; 
         }
-        break;
       }
-      case 4: {
-        if (DriveToPose({ 
-                   (units::foot_t) -3.0,
-              ra * (units::foot_t) 5.0,
-              ra * (units::degree_t) -60.0
-            }, false)) { 
-              m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
-                       units::velocity::meters_per_second_t{ 0.0 },
-                       units::angular_velocity::radians_per_second_t{ 0.0 }, 
-                       false, true);
-                       poseState++; /*jumps to default to end route*/ iCallCountprev = iCallCount;
-              }
-        break;
-      }
-      case 5: {
-        if (iCallCountprev + 300 <= iCallCount /*|| noteInShooter*/) {
-          m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
-          if (DriveToPose({ 
-                       (units::foot_t) -3.0,
-                  ra * (units::foot_t) 4.0,
-                  ra * (units::degree_t) -60.0
-                }, false)) { iCallCountprev = iCallCount; poseState++; }
-        }
-        break;
-      }
-      case 6: {
-          if (DriveToPose({ 
-                     (units::foot_t) -3.0,
-                ra * (units::foot_t) 4.0,
-                ra * (units::degree_t) -30.0
-              }, false)) {
-            iCallCountprev = iCallCount;
-            poseState++;
-            printf("MADE IT TO CASE 6 yay");
-          }
-        break;
-      }
-      case 7: {
-        m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
-        m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
-        m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
-                       units::velocity::meters_per_second_t{ 0.0 },
-                       units::angular_velocity::radians_per_second_t{ 0.0 }, 
-                       false, true);
-
-        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
-          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
-          iCallCountprev = iCallCount;
-          poseState++;
-        }
-        break;
-      }
+      break;
       // ROUTE #1 END
 
       // ROUTE #2
@@ -775,9 +837,18 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
                        faceAprilTag, 
                        false, true);
         poseState = -1;
-        break;
       }
+      break;
 
+      // RETURN
+      case 1000: {
+        if (iCallCountprev + 300 <= iCallCount) {
+          if (DriveToPose(startPose, false)) {
+            poseState = -1;
+          }
+        }
+      }
+      break;
 
       default: {
         m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
@@ -788,6 +859,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
         m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
       }
+
+
     }
     
     //switch
@@ -938,8 +1011,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   void DriveWithJoystick(bool fieldRelative) {
     // SLOOOOOOWMODE
-    // low speed by 0.3 if holding r-trigger
-    double lowGear = m_driverController.GetRightTriggerAxis() > 0.1 ? 0.3 : 1.0;
+    // low speed by 0.2 if holding r-trigger
+    double lowGear = m_driverController.GetRightTriggerAxis() > 0.1 ? 0.2 : 1.0;
 
     // Get the x speed. We are inverting this because Xbox controllers return
     // negative values when we push forward.

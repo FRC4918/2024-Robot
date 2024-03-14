@@ -24,6 +24,7 @@ class Drivetrain
 {
 public:
    Drivetrain() { m_gyro.Reset(); }
+   
 
    void Reset(void);
 
@@ -34,6 +35,7 @@ public:
               bool bFreezeDriveMotors = false );
    bool DriveUphill( units::meters_per_second_t sSpeed );
    void UpdateOdometry();
+   void ResetPose( frc::Pose2d startPose );
 
    units::angle::degree_t GetYaw();
    units::angular_velocity::degrees_per_second_t GetRate();
@@ -41,7 +43,7 @@ public:
         // Both of the below "maximums" are about twice what the robot
         // can actually do (about 3 meters/second and about 1 rotation/second)
    static constexpr units::meters_per_second_t kMaxSpeed =
-       5.5_mps; // about 5.5 meters per second
+       1.5_mps; // about 5.5 meters per second // 5.5
    static constexpr units::radians_per_second_t kMaxAngularSpeed{
       4.0*std::numbers::pi}; // 2 full rotations per second
 

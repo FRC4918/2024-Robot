@@ -201,6 +201,18 @@ void Drivetrain::Reset()
                                         (units::degree_t)0.0 } );  // rotation 
 }
 
+void Drivetrain::ResetPose(frc::Pose2d startPose) 
+{
+   m_gyro.Reset();
+   usleep( 10000 );                                     // wait 10 milliseconds
+   frc::Rotation2d m_gyro_GetRotation2d { m_gyro.GetAngle() };
+   m_poseEstimator.ResetPosition( m_gyro_GetRotation2d,
+                     {m_frontLeft.GetPosition(), m_frontRight.GetPosition(),
+                      m_backLeft.GetPosition(),  m_backRight.GetPosition()  },
+                                      startPose );  // rotation 
+
+}
+
 void Drivetrain::UpdateOdometry()
 {
    static int iCallCount = 0;
