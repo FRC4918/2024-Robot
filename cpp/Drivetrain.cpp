@@ -84,6 +84,39 @@ void Drivetrain::Drive( units::meters_per_second_t xSpeed,
    m_backRight.SetDesiredState(  br, bFreezeDriveMotors );
 }
 
+// void Drivetrain::AlineWheels()
+// {
+//    auto xSpeed = units::meters_per_second_t{0.0};
+//    auto ySpeed = units::meters_per_second_t{0.0};
+//    auto rot = units::radians_per_second_t{0.0};
+//    bool fieldRelative = true;
+//    bool bFreezeDriveMotors = false;
+
+//    frc::Rotation2d m_gyro_GetRotation2d { m_gyro.GetAngle() };
+
+//    auto states = m_kinematics.ToSwerveModuleStates(
+//        fieldRelative ? frc::ChassisSpeeds::FromFieldRelativeSpeeds(
+//                            xSpeed, ySpeed, rot, m_gyro_GetRotation2d)
+//                      : frc::ChassisSpeeds{xSpeed, ySpeed, rot});
+
+//    m_kinematics.DesaturateWheelSpeeds(&states, kMaxSpeed);
+
+//    auto [fl, fr, bl, br] = states;
+
+//    fl.angle = m_gyro.GetAngle();
+//    fr.angle = m_gyro.GetAngle();
+//    bl.angle = m_gyro.GetAngle();
+//    br.angle = m_gyro.GetAngle();
+
+//    iCallCount++;
+
+//    m_frontLeft.SetDesiredState(  fl, bFreezeDriveMotors );
+//    m_frontRight.SetDesiredState( fr, bFreezeDriveMotors );
+//    m_backLeft.SetDesiredState(   bl, bFreezeDriveMotors );
+//    m_backRight.SetDesiredState(  br, bFreezeDriveMotors );
+
+// }
+
 #ifdef JAG_NOTDEFINED
 bool Drivetrain::DriveUphill( units::meters_per_second_t sSpeed ) {
    bool bReturnValue = false;
@@ -209,9 +242,7 @@ void Drivetrain::ResetPose(frc::Pose2d startPose)
    m_poseEstimator.ResetPosition( m_gyro_GetRotation2d,
                      {m_frontLeft.GetPosition(), m_frontRight.GetPosition(),
                       m_backLeft.GetPosition(),  m_backRight.GetPosition()  },
-                                      { (units::meter_t)0.0,     // X on field
-                                        (units::meter_t)0.0,     // Y on field
-                                        (units::degree_t)0.0 } );  // rotation 
+                                                         startPose );  // rotation 
 
 }
 

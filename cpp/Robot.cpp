@@ -703,6 +703,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     static int iCallCountprev = 0;
     iCallCount++;
     
+    // std::cout << DriveToPose()
+    //           << std::endl;
 
     gyroYawHeading = m_swerve.GetYaw();
     gyroYawRate = m_swerve.GetRate();
@@ -741,8 +743,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         if (DriveToPose({ 
                    (units::foot_t) -5.0,
               ra * (units::foot_t) -1.0,
-              ra * (units::degree_t) 30.0 // -30.0
-            }, false)) { poseState=5; iCallCountprev = iCallCount; }
+              ra * (units::degree_t) 30.0 // -30.0 //30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
       } 
       break;
 
@@ -783,13 +785,20 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
             }, false)) { poseState++; iCallCountprev = iCallCount; printf("Moving to step 6\n"); }
       }
       break;
-
       case 6: {
         if (DriveToPose({ 
-                   (units::foot_t) -8.0, //-3.0
-              ra * (units::foot_t) -1.0, //5.0
+                   (units::foot_t) -5.0,
+              ra * (units::foot_t) -1.0,
               ra * (units::degree_t) 0.0
-            }, false)) { poseState = -1; iCallCountprev = iCallCount; printf("Moving to step 7\n"); }
+            }, false) && 
+            iCallCountprev + 50 < iCallCount) { poseState++; }
+      }
+      case 7: {
+        if (DriveToPose({ 
+                   (units::foot_t) -8.0, //-3.0 //-8.0
+              ra * (units::foot_t) -1.0, //5.0
+              ra * (units::degree_t) 0.0 //0.0
+            }, false)) { poseState=-1; iCallCountprev = iCallCount; printf("Moving to step 8\n"); }
       }
       break;
       // case 6: {
@@ -818,7 +827,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         //    poseState = -1;
         // break;
       //}
-      case 7: {
+      case 8: {
           if (DriveToPose({ 
                      (units::foot_t) -3.7,
                 ra * (units::foot_t) 3.3,
@@ -831,7 +840,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       }
       break;
 
-      case 8: {
+      case 9: {
         shooterSetVoltage(units::volt_t{ 11.0 });
         //m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
         //m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
@@ -848,7 +857,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       }
       break;
 
-      case 9: {
+      case 10: {
         if (iCallCountprev + 100 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
           m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
           m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
@@ -878,6 +887,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         }
       }
       break;
+
 
       default: {
         m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
@@ -1083,6 +1093,10 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   //LEFT SITCK PUSH
   //RIGHT STICK PUSH
   
+  // if (m_driverController.GetStartButton()) {
+  //   m_swerve.Drive()
+  // }
+
   // <Swap Camera> / Invert Controls (X)
   if (m_driverController.GetXButton()) {
     // if (selectedCamera == camera1) {
@@ -1290,10 +1304,12 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       dBiggestY = std::max( transform.Y().value(), dBiggestY );
       dSmallestX = std::min( transform.X().value(), dSmallestX );
       dSmallestY = std::min( transform.Y().value(), dSmallestY );
-      if ( !bFreezeDriveMotors && 0 == iCallCount%100 ) {
+      if ( !bFreezeDriveMotors && 0 == iCallCount%10 ) {
          std::cout << "DTP() X/X, Y/Y, Rot: "
-              << dSmallestX << "/" << dBiggestX << ", "
-              << dSmallestY << "/" << dBiggestY << ", "
+              // << dSmallestX << "/" << dBiggestX << ", "
+              // << dSmallestY << "/" << dBiggestY << ", "
+              << transform.X().value() << "/"
+              << transform.Y().value() << "   "
               << transform.Rotation().Degrees().value()
               << std::endl;
       }
@@ -1302,8 +1318,14 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
                         transform.X().value() / 2.0 ) * Drivetrain::kMaxSpeed;
       auto ySpeed = m_yspeedLimiterA.Calculate(
                         transform.Y().value() / 2.0 ) * Drivetrain::kMaxSpeed;
+
+      //find the shortest degrees to face tag
+    int AutodegreesToTurn = (int) ((double) transform.Rotation().Degrees()) % 360;
+    if (AutodegreesToTurn > 180) AutodegreesToTurn -= 360;
+    if (AutodegreesToTurn < -180) AutodegreesToTurn += 360;
+
       auto rot =
-             m_rotLimiterA.Calculate( transform.Rotation().Degrees().value() /
+             m_rotLimiterA.Calculate( AutodegreesToTurn /
                                        180.00 ) * Drivetrain::kMaxAngularSpeed;
 
       xSpeed = std::min( Drivetrain::kMaxSpeed, xSpeed );
@@ -1363,6 +1385,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
                        units::angular_velocity::radians_per_second_t{ 0.0 }, 
                        false, true);
   }
+  
+  //void alignwheels(gyroYawHeading)
 };
 
 #ifndef RUNNING_FRC_TESTS

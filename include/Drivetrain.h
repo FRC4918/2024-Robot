@@ -27,6 +27,7 @@ public:
    
 
    void Reset(void);
+   //void AlineWheels();
 
    void Drive(units::meters_per_second_t xSpeed,
               units::meters_per_second_t ySpeed,
@@ -36,6 +37,8 @@ public:
    bool DriveUphill( units::meters_per_second_t sSpeed );
    void UpdateOdometry();
    void ResetPose( frc::Pose2d startPose );
+
+
 
    units::angle::degree_t GetYaw();
    units::angular_velocity::degrees_per_second_t GetRate();
