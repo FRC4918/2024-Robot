@@ -209,7 +209,9 @@ void Drivetrain::ResetPose(frc::Pose2d startPose)
    m_poseEstimator.ResetPosition( m_gyro_GetRotation2d,
                      {m_frontLeft.GetPosition(), m_frontRight.GetPosition(),
                       m_backLeft.GetPosition(),  m_backRight.GetPosition()  },
-                                      startPose );  // rotation 
+                                      { (units::meter_t)0.0,     // X on field
+                                        (units::meter_t)0.0,     // Y on field
+                                        (units::degree_t)0.0 } );  // rotation 
 
 }
 

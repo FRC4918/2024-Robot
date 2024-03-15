@@ -572,8 +572,33 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
  public:
  void RobotInit() override {
-    std::cout << "I am a rat I am a theif I will still your ethernet cable. - The Rat"
-              << std::endl;
+    #define RAND_MAX 7
+    int randMessage = rand();
+    if (0 == randMessage) {
+      std::cout << "I am a rat I am a theif I will still your ethernet cable. - The Rat"
+                << std::endl;
+    } else if (1 == randMessage) {
+      std::cout << "erROAR"
+                << std::endl;    
+    } else if (2 == randMessage) {
+      std::cout << "Thanks C418!"
+                << std::endl;
+    } else if (3 == randMessage) {
+      std::cout << "we love std::"
+                << std::endl;
+    } else if (4 == randMessage) {
+      std::cout << "Lets try this, hahahahaha..."
+                << std::endl;
+    } else if (5 == randMessage) {
+      std::cout << "|:~{"
+                << std::endl;
+    } else if (6 == randMessage) {
+      std::cout << "People told me, you've changed you've changed and I pooped my pants"
+                << std::endl;
+    } else if (7 == randMessage) {
+      std::cout << "I touched the intake and it feel apart. I dont think the robot is ready yet"
+                << std::endl;
+    }
 
     // We need to run our vision program in a separate thread.
     // If not run separately (in parallel), our robot program will never
@@ -722,12 +747,14 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       break;
 
       case 3: {
-        m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
-        m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
-        m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
-                       units::velocity::meters_per_second_t{ 0.0 },
-                       units::angular_velocity::radians_per_second_t{ 0.0 }, 
-                       false, true);
+        shooterSetVoltage(units::volt_t{ 11.0 });
+        //m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
+        //m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
+        drivebrake();
+        // m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
+        //                units::velocity::meters_per_second_t{ 0.0 },
+        //                units::angular_velocity::radians_per_second_t{ 0.0 }, 
+        //                false, true);
 
         if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
           m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
@@ -739,8 +766,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
       case 4: {
         if (iCallCountprev + 100 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
-          m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
-          m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
+          shooterSetVoltage(units::volt_t{ 0.0 });
+          //m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
+          //m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
           //m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
           poseState++; 
         }
@@ -804,8 +832,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       break;
 
       case 8: {
-        m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
-        m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
+        shooterSetVoltage(units::volt_t{ 11.0 });
+        //m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
+        //m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
         m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
                        units::velocity::meters_per_second_t{ 0.0 },
                        units::angular_velocity::radians_per_second_t{ 0.0 }, 
@@ -1103,9 +1132,6 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   // fprintf(logfptr, "SH RPM: %5.0f\n", m_swerve.);
   }
 
-
-
-
   void OperatorControls() {
     static bool stopIntake = false;
     static int iCallCount = 0;
@@ -1169,11 +1195,11 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     if (m_operatorController.GetLeftBumper()) {
       m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
-      std::cout << "LshootRpm:"
-                << m_LeftShooterMotorEncoder.GetVelocity()
-                << " RshootRpm:"
-                << m_RightShooterMotorEncoder.GetVelocity()
-                << std::endl;
+      // std::cout << "LshootRpm:"
+      //           << m_LeftShooterMotorEncoder.GetVelocity()
+      //           << " RshootRpm:"
+      //           << m_RightShooterMotorEncoder.GetVelocity()
+      //           << std::endl;
     }  
     // REVERSE SHOOTER INCASE LODGED (REMOVE IF NOT NESSASARY)
     else if (m_operatorController.GetAButton()) {
@@ -1324,6 +1350,18 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     // Converts degrees from vision thread to radians per second.
     // Also converts 
     return (units::angular_velocity::radians_per_second_t) degreesToTurn * M_PI / 180;
+  }
+
+  void shooterSetVoltage(units::volt_t voltage){
+    m_RightShooterMotor.SetVoltage(voltage);
+    m_LeftShooterMotor.SetVoltage(-voltage);
+  }
+
+  void drivebrake(){
+    m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
+                       units::velocity::meters_per_second_t{ 0.0 },
+                       units::angular_velocity::radians_per_second_t{ 0.0 }, 
+                       false, true);
   }
 };
 
