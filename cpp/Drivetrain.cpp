@@ -17,6 +17,8 @@ using std::setw;
 using std::setfill;         // so we can use "setfill('0') in cout streams
 using std::abs;
 
+frc::Pose2d initialPose;
+
 void Drivetrain::Drive( units::meters_per_second_t xSpeed,
                         units::meters_per_second_t ySpeed,
                         units::radians_per_second_t rot,
@@ -51,10 +53,10 @@ void Drivetrain::Drive( units::meters_per_second_t xSpeed,
         ( !fieldRelative                                      ) &&
         (    rot < (units::radians_per_second_t)0.001         ) &&
         (         -(units::radians_per_second_t)0.001 < rot   )    ) {
-      fl.angle = (frc::Rotation2d)(units::degree_t)-45.0;
-      fr.angle = (frc::Rotation2d)(units::degree_t)45.0;
-      bl.angle = (frc::Rotation2d)(units::degree_t)45.0;
-      br.angle = (frc::Rotation2d)(units::degree_t)-45.0;
+      fl.angle = (frc::Rotation2d)(units::degree_t)45.0; //-45
+      fr.angle = (frc::Rotation2d)(units::degree_t)-45.0;  //45
+      bl.angle = (frc::Rotation2d)(units::degree_t)-45.0;  //45
+      br.angle = (frc::Rotation2d)(units::degree_t)45.0; //-45
    }
 
    if ( 0 == iCallCount%50 )
@@ -84,7 +86,7 @@ void Drivetrain::Drive( units::meters_per_second_t xSpeed,
    m_backRight.SetDesiredState(  br, bFreezeDriveMotors );
 }
 
-// void Drivetrain::AlineWheels()
+// void Drivetrain::AllignWheels()
 // {
 //    auto xSpeed = units::meters_per_second_t{0.0};
 //    auto ySpeed = units::meters_per_second_t{0.0};
@@ -238,8 +240,10 @@ void Drivetrain::ResetPose(frc::Pose2d startPose)
 {
    m_gyro.Reset();
    usleep( 10000 );                                     // wait 10 milliseconds
+   initialPose = startPose;
+   m_gyro.SetGyroAngle(frc::ADIS16470_IMU::kYaw, startPose.Rotation().Degrees());
    frc::Rotation2d m_gyro_GetRotation2d { m_gyro.GetAngle() };
-   m_poseEstimator.ResetPosition( m_gyro_GetRotation2d,
+   m_poseEstimator.ResetPosition( m_gyro_GetRotation2d ,
                      {m_frontLeft.GetPosition(), m_frontRight.GetPosition(),
                       m_backLeft.GetPosition(),  m_backRight.GetPosition()  },
                                                          startPose );  // rotation 
@@ -273,8 +277,10 @@ void Drivetrain::UpdateOdometry()
 //      frc::Timer::GetFPGATimestamp() - 0.3_s);
 }
 
+
+
 units::angle::degree_t Drivetrain::GetYaw() {
-   return m_gyro.GetAngle();
+   return m_gyro.GetAngle() + initialPose.Rotation().Degrees();
 }
 
 units::angular_velocity::degrees_per_second_t Drivetrain::GetRate() {

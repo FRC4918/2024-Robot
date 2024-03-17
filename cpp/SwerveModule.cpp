@@ -117,8 +117,8 @@ SwerveModule::SwerveModule(const int driveMotorCanID,
    MotorInitSpark(m_driveMotor);
    MotorInitSpark(m_turningMotor);
    m_turningMotor.SetSmartCurrentLimit(10, 5, 5000);
-   m_driveMotor.SetClosedLoopRampRate(1.0);
-   m_driveMotor.SetOpenLoopRampRate(1.0);
+   m_driveMotor.SetClosedLoopRampRate(0.1);
+   m_driveMotor.SetOpenLoopRampRate(0.1);
 
    // Set the distance per pulse for the drive encoder. We can simply use the
    // distance traveled for one rotation of the wheel divided by the encoder

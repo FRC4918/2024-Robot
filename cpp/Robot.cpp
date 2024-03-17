@@ -62,14 +62,15 @@ static cs::CvSink cvSink;
 //Global Control Variables
 //static bool invertContols = false;
 static cs::UsbCamera selectedCamera = camera1;
-static int ra; // Reversed auto, 1 for red, -1 for blue
+static int ra = 1; // Reversed auto, 1 for red, -1 for blue
 
 //Note Sensor
 static bool noteInShooter = false;
 static bool prevNoteInShooter = false;
 
 //AUTONOMOUS
-static int poseState;
+static int poseState = 0;
+static int poseStatePrev = 0;
 int iCallCount = 0;
 static frc::Pose2d startPose = { (units::foot_t) 0.0,
                                  (units::foot_t) 0.0,
@@ -281,7 +282,7 @@ frc::Joystick m_Console{3};
         if (frc::DriverStation::kRed == frc::DriverStation::GetAlliance()) {
           switch (tagId) {
             case 4: {
-              printf("saw tag 4 (Red team)");
+              //printf("saw tag 4 (Red team)/n");
               // Tag distance (Z-Axis)
               targetDist = 2.642; // Distance we want to be from april tag
               desiredDist = (double) tagDist - targetDist;
@@ -334,7 +335,7 @@ frc::Joystick m_Console{3};
         } else if (frc::DriverStation::kBlue == frc::DriverStation::GetAlliance()) {
           switch (tagId) {
             case 7: {
-              printf("saw tag 7 (Blue team)");
+              //printf("saw tag 7 (Blue team)/n");
               // Tag distance (z axis)
               targetDist = 2.642; // Distance we want to be from april tag
               desiredDist = (double) tagDist - targetDist;
@@ -572,33 +573,33 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
  public:
  void RobotInit() override {
-    #define RAND_MAX 7
-    int randMessage = rand();
-    if (0 == randMessage) {
-      std::cout << "I am a rat I am a theif I will still your ethernet cable. - The Rat"
-                << std::endl;
-    } else if (1 == randMessage) {
-      std::cout << "erROAR"
-                << std::endl;    
-    } else if (2 == randMessage) {
-      std::cout << "Thanks C418!"
-                << std::endl;
-    } else if (3 == randMessage) {
-      std::cout << "we love std::"
-                << std::endl;
-    } else if (4 == randMessage) {
-      std::cout << "Lets try this, hahahahaha..."
-                << std::endl;
-    } else if (5 == randMessage) {
-      std::cout << "|:~{"
-                << std::endl;
-    } else if (6 == randMessage) {
-      std::cout << "People told me, you've changed you've changed and I pooped my pants"
-                << std::endl;
-    } else if (7 == randMessage) {
-      std::cout << "I touched the intake and it feel apart. I dont think the robot is ready yet"
-                << std::endl;
-    }
+    // #define RAND_MAX 7
+    // int randMessage = rand();
+    // if (0 == randMessage) {
+    //   std::cout << "I am a rat I am a theif I will still your ethernet cable. - The Rat"
+    //             << std::endl;
+    // } else if (1 == randMessage) {
+    //   std::cout << "erROAR"
+    //             << std::endl;    
+    // } else if (2 == randMessage) {
+    //   std::cout << "Thanks C418!"
+    //             << std::endl;
+    // } else if (3 == randMessage) {
+    //   std::cout << "we love std::"
+    //             << std::endl;
+    // } else if (4 == randMessage) {
+    //   std::cout << "Lets try this, hahahahaha..."
+    //             << std::endl;
+    // } else if (5 == randMessage) {
+    //   std::cout << "|:~{"
+    //             << std::endl;
+    // } else if (6 == randMessage) {
+    //   std::cout << "People told me, you've changed you've changed and I pooped my pants"
+    //             << std::endl;
+    // } else if (7 == randMessage) {
+    //   std::cout << "I touched the intake and it feel apart. I dont think the robot is ready yet"
+    //             << std::endl;
+    // }
 
     // We need to run our vision program in a separate thread.
     // If not run separately (in parallel), our robot program will never
@@ -648,16 +649,16 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     // Reset
     m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
     m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
-    m_swerve.Reset();
+    //m_swerve.Reset();
     iCallCount = 0;
 
     // Check which autonomous to use
-    // If multiple switches are flipped, prioety goes to smallest number
+    // If multiple switches are flipped, priority goes to smallest number
     if (BUTTON_SWITCH1) {
       poseState = AUTO1_START;
       m_swerve.ResetPose({ (units::foot_t) 0.0,
                            (units::foot_t) 0.0,
-                           (units::degree_t) 60.0 });
+                           (units::degree_t) 60.0 }); //60.0
 
 
       printf("Auto route 1 started on ");
@@ -691,13 +692,12 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       poseState = AUTO1_START;
       m_swerve.ResetPose({ (units::foot_t) 0.0,
                            (units::foot_t) 0.0,
-                           (units::degree_t) 60.0 });
+                           (units::degree_t) 60.0 }); //60.0
       printf("No auto route selected, defaulting to route #1\n");
     }
 
+    printf("AUTONOMOUS INITIALIZED");
   }
-
-
 
   void AutonomousPeriodic() override {
     static int iCallCountprev = 0;
@@ -712,6 +712,11 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     auto faceAprilTag = GetATagVariables();
 
     //DriveWithJoystick(false);
+    if (poseStatePrev != poseState) {
+      std::cout << "State = " << poseState
+                << std::endl;
+    }
+    poseStatePrev = poseState;
 
     /**
      * AUTONOMOUS STAGES
@@ -723,7 +728,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         if (DriveToPose({ 
                    (units::foot_t) 0.0,
               ra * (units::foot_t) 0.0,
-              ra * (units::degree_t) 60.0
+              ra * (units::degree_t) 60.0 //60.0
             }, false) && 
             iCallCount > 20) { poseState++; }
 
@@ -749,17 +754,13 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       break;
 
       case 3: {
-        shooterSetVoltage(units::volt_t{ 11.0 });
+        //shooterSetVoltage(units::volt_t{ 11.0 });
         //m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
         //m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
         drivebrake();
-        // m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
-        //                units::velocity::meters_per_second_t{ 0.0 },
-        //                units::angular_velocity::radians_per_second_t{ 0.0 }, 
-        //                false, true);
 
-        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
-          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+        if (/*m_LeftShooterMotorEncoder.GetVelocity() <= -3100 &&*/ (iCallCountprev + 100 <= iCallCount)) {
+          //m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); 
           iCallCountprev = iCallCount;
           poseState++;
         }
@@ -767,8 +768,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       break;
 
       case 4: {
+        drivebrake();
         if (iCallCountprev + 100 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
-          shooterSetVoltage(units::volt_t{ 0.0 });
+          //shooterSetVoltage(units::volt_t{ 0.0 });
           //m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
           //m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
           //m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
@@ -779,28 +781,38 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       
       case 5: {
         if (DriveToPose({ 
-                   (units::foot_t) -5.0, //-3.0
-              ra * (units::foot_t) -1.0, //5.0
+                   (units::foot_t) -8.0, //-3.0 //-5.0
+              ra * (units::foot_t) -2.0, //5.0 //-1.0
               ra * (units::degree_t) 0.0
-            }, false)) { poseState++; iCallCountprev = iCallCount; printf("Moving to step 6\n"); }
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
       }
       break;
       case 6: {
         if (DriveToPose({ 
-                   (units::foot_t) -5.0,
-              ra * (units::foot_t) -1.0,
-              ra * (units::degree_t) 0.0
-            }, false) && 
-            iCallCountprev + 50 < iCallCount) { poseState++; }
-      }
-      case 7: {
-        if (DriveToPose({ 
-                   (units::foot_t) -8.0, //-3.0 //-8.0
-              ra * (units::foot_t) -1.0, //5.0
-              ra * (units::degree_t) 0.0 //0.0
-            }, false)) { poseState=-1; iCallCountprev = iCallCount; printf("Moving to step 8\n"); }
+                   (units::foot_t) -5.0, //-5.0 //ig -4.8
+              ra * (units::foot_t) -1.0, //-1.0 //ig -0.5
+              ra * (units::degree_t) 30.0
+            }, false) /*&& 
+            iCallCountprev + 50 < iCallCount*/) { poseState++; }
       }
       break;
+      case 7: {
+        if (DriveToPose({ 
+                   (units::foot_t) -24.0, //-3.0 //-8.0
+              ra * (units::foot_t) -0.0, //5.0 //-1.0
+              ra * (units::degree_t) 0.0 //0.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      }
+      break;
+      case 8: {
+        if (DriveToPose({ 
+                   (units::foot_t) -5.0, //-3.0 //-8.0
+              ra * (units::foot_t) -1.0, //5.0 //-1.0
+              ra * (units::degree_t) 30.0 //0.0
+            }, false)) { poseState=-1; iCallCountprev = iCallCount; }
+      }
+      break;
+
       // case 6: {
       //   if (DriveToPose({ 
       //              (units::foot_t) -5.2, //-3.0 //-3.9 //-4.9
@@ -827,18 +839,18 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         //    poseState = -1;
         // break;
       //}
-      case 8: {
-          if (DriveToPose({ 
-                     (units::foot_t) -3.7,
-                ra * (units::foot_t) 3.3,
-                ra * (units::degree_t) -25.0
-              }, false)) {
-            iCallCountprev = iCallCount;
-            printf("MADE IT TO CASE 6 yay");
-            poseState++;
-          }
-      }
-      break;
+      // case 8: {
+      //     if (DriveToPose({ 
+      //                (units::foot_t) -3.7,
+      //           ra * (units::foot_t) 3.3,
+      //           ra * (units::degree_t) -25.0
+      //         }, false)) {
+      //       iCallCountprev = iCallCount;
+      //       printf("MADE IT TO CASE 6 yay");
+      //       poseState++;
+      //     }
+      // }
+      // break;
 
       case 9: {
         shooterSetVoltage(units::volt_t{ 11.0 });
@@ -1298,42 +1310,75 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
       static double dBiggestX = 0.0,  dBiggestY = 0.0;
       static double dSmallestX = 0.0, dSmallestY = 0.0;
-      frc::Transform2d transform = DestinationPose - 
-                               m_swerve.m_poseEstimator.GetEstimatedPosition();
-      dBiggestX = std::max( transform.X().value(), dBiggestX );
-      dBiggestY = std::max( transform.Y().value(), dBiggestY );
-      dSmallestX = std::min( transform.X().value(), dSmallestX );
-      dSmallestY = std::min( transform.Y().value(), dSmallestY );
+      // Problem code below
+      // frc::Transform2d transform = DestinationPose - 
+      //                          m_swerve.m_poseEstimator.GetEstimatedPosition();
+      frc::Transform2d transform = {
+        DestinationPose.X() - m_swerve.m_poseEstimator.GetEstimatedPosition().X(),
+        DestinationPose.Y() - m_swerve.m_poseEstimator.GetEstimatedPosition().Y(),
+        DestinationPose.Rotation() - m_swerve.m_poseEstimator.GetEstimatedPosition().Rotation(),
+      };
+
+
+              //find the shortest degrees to face tag
+      int AutodegreesToTurn = (int) ((double) transform.Rotation().Degrees()) % 360;
+      if (AutodegreesToTurn > 180) AutodegreesToTurn -= 360;
+      if (AutodegreesToTurn < -180) AutodegreesToTurn += 360;
+
+      auto rot =
+        m_rotLimiterA.Calculate( AutodegreesToTurn /
+                                  180.00 ) * Drivetrain::kMaxAngularSpeed;
+      // jag; 07apr2023    (Limiter --> LimiterA in 3 places)
+      auto xSpeed = m_xspeedLimiterA.Calculate(
+                        transform.X().value() / 2.0 ) * Drivetrain::kMaxSpeed;
+      auto ySpeed = m_yspeedLimiterA.Calculate(
+                        transform.Y().value() / 2.0 ) * Drivetrain::kMaxSpeed;
+
+      if (AutodegreesToTurn <= -8 || 8 <= AutodegreesToTurn) {
+        xSpeed = (units::velocity::meters_per_second_t) 0.0;
+        ySpeed = (units::velocity::meters_per_second_t) 0.0;
+
+        rot    = std::min( Drivetrain::kMaxAngularSpeed, rot );
+        rot    = std::max( -Drivetrain::kMaxAngularSpeed, rot );
+      } else {
+      
+        rot = (units::angular_velocity::radians_per_second_t) 0.0;
+
+        dBiggestX = std::max( transform.X().value(), dBiggestX );
+        dBiggestY = std::max( transform.Y().value(), dBiggestY );
+        dSmallestX = std::min( transform.X().value(), dSmallestX );
+        dSmallestY = std::min( transform.Y().value(), dSmallestY );
+
+        xSpeed = std::min( Drivetrain::kMaxSpeed, xSpeed );
+        ySpeed = std::min( Drivetrain::kMaxSpeed, ySpeed );
+        xSpeed = std::max( -Drivetrain::kMaxSpeed, xSpeed );
+        ySpeed = std::max( -Drivetrain::kMaxSpeed, ySpeed );
+      }
+
       if ( !bFreezeDriveMotors && 0 == iCallCount%10 ) {
          std::cout << "DTP() X/X, Y/Y, Rot: "
               // << dSmallestX << "/" << dBiggestX << ", "
               // << dSmallestY << "/" << dBiggestY << ", "
               << transform.X().value() << "/"
               << transform.Y().value() << "   "
-              << transform.Rotation().Degrees().value()
+              << transform.Rotation().Degrees().value() << "  "
+              << (double) xSpeed << "/"
+              << (double) ySpeed << "/"
+              << (double) rot << "   "
+              << AutodegreesToTurn
+              // << std::endl
+              // << "Destination Pose: "
+              // << DestinationPose.X().value() << ", "
+              // << DestinationPose.Y().value() << ", "
+              // << DestinationPose.Rotation().Degrees().value()
+              // << std::endl
+              << "Estimated Pose: "
+              << m_swerve.m_poseEstimator.GetEstimatedPosition().X().value() << ", "
+              << m_swerve.m_poseEstimator.GetEstimatedPosition().Y().value() << ", "
+              << m_swerve.m_poseEstimator.GetEstimatedPosition().Rotation().Degrees().value()
               << std::endl;
-      }
-// jag; 07apr2023    (Limiter --> LimiterA in 3 places)
-      auto xSpeed = m_xspeedLimiterA.Calculate(
-                        transform.X().value() / 2.0 ) * Drivetrain::kMaxSpeed;
-      auto ySpeed = m_yspeedLimiterA.Calculate(
-                        transform.Y().value() / 2.0 ) * Drivetrain::kMaxSpeed;
-
-      //find the shortest degrees to face tag
-    int AutodegreesToTurn = (int) ((double) transform.Rotation().Degrees()) % 360;
-    if (AutodegreesToTurn > 180) AutodegreesToTurn -= 360;
-    if (AutodegreesToTurn < -180) AutodegreesToTurn += 360;
-
-      auto rot =
-             m_rotLimiterA.Calculate( AutodegreesToTurn /
-                                       180.00 ) * Drivetrain::kMaxAngularSpeed;
-
-      xSpeed = std::min( Drivetrain::kMaxSpeed, xSpeed );
-      ySpeed = std::min( Drivetrain::kMaxSpeed, ySpeed );
-      rot    = std::min( Drivetrain::kMaxAngularSpeed, rot );
-      xSpeed = std::max( -Drivetrain::kMaxSpeed, xSpeed );
-      ySpeed = std::max( -Drivetrain::kMaxSpeed, ySpeed );
-      rot    = std::max( -Drivetrain::kMaxAngularSpeed, rot );
+              }
+            
 
 //    if ( 4 == iCallCount%50 ) {
 //       std::cout << "xSpeed: " << xSpeed.value() << std::endl;

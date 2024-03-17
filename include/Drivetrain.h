@@ -17,6 +17,9 @@
 
 #include "SwerveModule.h"
 
+units::degree_t GetFieldAngle();
+
+
 /**
  * Represents a swerve drive style drivetrain.
  */
@@ -46,7 +49,7 @@ public:
         // Both of the below "maximums" are about twice what the robot
         // can actually do (about 3 meters/second and about 1 rotation/second)
    static constexpr units::meters_per_second_t kMaxSpeed =
-       1.5_mps; // about 5.5 meters per second // 5.5
+       3.5_mps; // about 5.5 meters per second // 5.5
    static constexpr units::radians_per_second_t kMaxAngularSpeed{
       4.0*std::numbers::pi}; // 2 full rotations per second
 
@@ -54,7 +57,8 @@ private:
 
 #ifdef JAG_PREVIOUS_EXPERIMENTAL_ROBOT
        // These values worked well in our experimental swerve robot:
-   frc::Translation2d m_frontLeftLocation{+0.26_m, +0.26_m};
+   frc::Translation2d m_fr
+   ontLeftLocation{+0.26_m, +0.26_m};
    frc::Translation2d m_frontRightLocation{+0.26_m, -0.26_m};
    frc::Translation2d m_backLeftLocation{-0.26_m, +0.26_m};
    frc::Translation2d m_backRightLocation{-0.26_m, -0.26_m};
@@ -78,10 +82,10 @@ private:
 #else
        // For the 2023 robot, the swerve modules got re-ordered
        // (the front-left and front-right modules got swapped):
-   SwerveModule m_frontLeft{  8,  17, 1, 304 }; //304 //294 //204 //294 //314
-   SwerveModule m_frontRight{ 12, 15, 0, 54  }; //126 //24 //44 //134 //44
-   SwerveModule m_backLeft{   14, 9,  3, 70  }; //24 //216 //261 //81 //71 //161 //70
-   SwerveModule m_backRight{  11, 16, 2, 304 }; //150 //330 //285 //304 //214
+   SwerveModule m_frontLeft{  8,  17, 1, 304 }; //304 //294 //204 //294 //314 //304
+   SwerveModule m_frontRight{ 12, 15, 0, 54  }; //126 //24 //44 //134 //44 //54
+   SwerveModule m_backLeft{   14, 9,  3, 70  }; //24 //216 //261 //81 //71 //161 //70 
+   SwerveModule m_backRight{  11, 16, 2, 304 }; //150 //330 //285 //304 //214 //304
 #endif
 
    //frc::AnalogGyro m_gyro{0};
