@@ -293,7 +293,7 @@ frc::Joystick m_Console{3};
             }
 
             //AMPS
-            case 5: {
+            /*case 5: {
               // Tag distance (z axis)
               targetDist = 1.0; // Distance we want to be from april tag
               desiredDist = (double) tagDist - targetDist;
@@ -328,7 +328,7 @@ frc::Joystick m_Console{3};
             }
             default: {
 
-            }
+            }*/
           }
 
 
@@ -346,7 +346,7 @@ frc::Joystick m_Console{3};
             }
 
             //AMPS
-            case 6: {
+            /*case 6: {
               // Tag distance (z axis)
               targetDist = 1.0; // Distance we want to be from april tag
               desiredDist = (double) tagDist - targetDist;
@@ -381,7 +381,7 @@ frc::Joystick m_Console{3};
             }
             default: {
 
-            }
+            }*/
           }
         }
 
@@ -573,34 +573,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
  public:
  void RobotInit() override {
-    // #define RAND_MAX 7
-    // int randMessage = rand();
-    // if (0 == randMessage) {
-    //   std::cout << "I am a rat I am a theif I will still your ethernet cable. - The Rat"
-    //             << std::endl;
-    // } else if (1 == randMessage) {
-    //   std::cout << "erROAR"
-    //             << std::endl;    
-    // } else if (2 == randMessage) {
-    //   std::cout << "Thanks C418!"
-    //             << std::endl;
-    // } else if (3 == randMessage) {
-    //   std::cout << "we love std::"
-    //             << std::endl;
-    // } else if (4 == randMessage) {
-    //   std::cout << "Lets try this, hahahahaha..."
-    //             << std::endl;
-    // } else if (5 == randMessage) {
-    //   std::cout << "|:~{"
-    //             << std::endl;
-    // } else if (6 == randMessage) {
-    //   std::cout << "People told me, you've changed you've changed and I pooped my pants"
-    //             << std::endl;
-    // } else if (7 == randMessage) {
-    //   std::cout << "I touched the intake and it feel apart. I dont think the robot is ready yet"
-    //             << std::endl;
-    // }
-
+    
     // We need to run our vision program in a separate thread.
     // If not run separately (in parallel), our robot program will never
     // get to execute.
@@ -697,6 +670,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     }
 
     printf("AUTONOMOUS INITIALIZED");
+
+    //superImportantRobotFunctionDONOTREMOVE(); //splish splash sploosh
   }
 
   void AutonomousPeriodic() override {
@@ -754,13 +729,11 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       break;
 
       case 3: {
-        //shooterSetVoltage(units::volt_t{ 11.0 });
-        //m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
-        //m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
+        shooterSetVoltage(units::volt_t{ 11.0 });
         drivebrake();
 
-        if (/*m_LeftShooterMotorEncoder.GetVelocity() <= -3100 &&*/ (iCallCountprev + 100 <= iCallCount)) {
-          //m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); 
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); 
           iCallCountprev = iCallCount;
           poseState++;
         }
@@ -769,25 +742,43 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
       case 4: {
         drivebrake();
-        if (iCallCountprev + 100 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
-          //shooterSetVoltage(units::volt_t{ 0.0 });
-          //m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
-          //m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
-          //m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+        if (iCallCountprev + 25 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
+          shooterSetVoltage(units::volt_t{ 0.0 });
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
           poseState++; 
         }
       }
       break;
-      
+
       case 5: {
         if (DriveToPose({ 
-                   (units::foot_t) -8.0, //-3.0 //-5.0
-              ra * (units::foot_t) -2.0, //5.0 //-1.0
+                   (units::foot_t) -7.0, //-3.0 //-5.0
+              ra * (units::foot_t) -1.42, //5.0 //-1.0
               ra * (units::degree_t) 0.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
       }
       break;
+
       case 6: {
+        drivebrake();
+        if (iCallCountprev + 300 <= iCallCount || noteInShooter) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+          poseState++;
+        } 
+      }
+      break;
+
+      
+      case 7: {
+        if (DriveToPose({ 
+                    (units::foot_t) -5.0, //-3.6
+                ra * (units::foot_t) -1.0, //-3.6 //3.2
+                ra * (units::degree_t) 0.0 //30 //-25.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      }
+      break;
+
+      case 8: {
         if (DriveToPose({ 
                    (units::foot_t) -5.0, //-5.0 //ig -4.8
               ra * (units::foot_t) -1.0, //-1.0 //ig -0.5
@@ -796,88 +787,64 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
             iCallCountprev + 50 < iCallCount*/) { poseState++; }
       }
       break;
-      case 7: {
-        if (DriveToPose({ 
-                   (units::foot_t) -24.0, //-3.0 //-8.0
-              ra * (units::foot_t) -0.0, //5.0 //-1.0
-              ra * (units::degree_t) 0.0 //0.0
-            }, false)) { poseState++; iCallCountprev = iCallCount; }
-      }
-      break;
-      case 8: {
-        if (DriveToPose({ 
-                   (units::foot_t) -5.0, //-3.0 //-8.0
-              ra * (units::foot_t) -1.0, //5.0 //-1.0
-              ra * (units::degree_t) 30.0 //0.0
-            }, false)) { poseState=-1; iCallCountprev = iCallCount; }
-      }
-      break;
 
-      // case 6: {
-      //   if (DriveToPose({ 
-      //              (units::foot_t) -5.2, //-3.0 //-3.9 //-4.9
-      //         ra * (units::foot_t) 5.1, //5.0 //4.6 //4.9
-      //         ra * (units::degree_t) -60.0
-      //       }, false)) {
-      //         /*m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
-      //                  units::velocity::meters_per_second_t{ 0.0 },
-      //                  units::angular_velocity::radians_per_second_t{ 0.0 }, 
-      //                  false, true);*/
-      //         iCallCountprev = iCallCount;
-      //       }
-             
-            
-        // if (iCallCountprev + 300 <= iCallCount || noteInShooter) {
-        //   m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
-        // }
-        // if (DriveToPose({ 
-        //             (units::foot_t) -3.7, //-3.6
-        //         ra * (units::foot_t) 3.3, //-3.6 //3.2
-        //         ra * (units::degree_t) -25.0 //30 //-25.0
-        //     }, false)) { iCallCountprev = iCallCount; /*poseState++;*/ }
-        //     m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
-        //    poseState = -1;
-        // break;
-      //}
-      // case 8: {
-      //     if (DriveToPose({ 
-      //                (units::foot_t) -3.7,
-      //           ra * (units::foot_t) 3.3,
-      //           ra * (units::degree_t) -25.0
-      //         }, false)) {
-      //       iCallCountprev = iCallCount;
-      //       printf("MADE IT TO CASE 6 yay");
-      //       poseState++;
-      //     }
-      // }
-      // break;
-
+      //5a
       case 9: {
-        shooterSetVoltage(units::volt_t{ 11.0 });
-        //m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
-        //m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
-        m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
-                       units::velocity::meters_per_second_t{ 0.0 },
-                       units::angular_velocity::radians_per_second_t{ 0.0 }, 
-                       false, true);
-
-        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
-          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
-          iCallCountprev = iCallCount;
-          poseState++;
-        }
+        if (DriveToPose({ 
+                   (units::foot_t) -5.0,
+              ra * (units::foot_t) -5.42,
+              ra * (units::degree_t) 0.0
+            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 }); poseState++; }
       }
-      break;
+      break; 
 
       case 10: {
-        if (iCallCountprev + 100 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
-          m_LeftShooterMotor.SetVoltage(units::volt_t{ 0.0 });
-          m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
+        if (DriveToPose({ 
+                   (units::foot_t) -10.75,
+              ra * (units::foot_t) -5.42,
+              ra * (units::degree_t) 0.0
+            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 }); poseState++; }
+      }
+      break; 
+
+      //5b
+      case 11: {
+        if (DriveToPose({ 
+                   (units::foot_t) -15.33,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 0.0
+            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 }); iCallCount = iCallCountprev; poseState++; }
+      }
+      break; 
+
+      //5c
+      case 12: {
+        if (DriveToPose({ 
+                   (units::foot_t) -25.41,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 0.0
+            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 }); poseState++; }
+      }
+      break;  
+
+      case 13: {
+       if (iCallCountprev + 300 <= iCallCount || noteInShooter) {
           m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
-          poseState++; 
-        }
+          poseState++;
+        } 
       }
       break;
+
+      //6
+      case 14: {
+        if (DriveToPose({ 
+                   (units::foot_t) -8.0,
+              ra * (units::foot_t) 4.0,
+              ra * (units::degree_t) 0.0
+            }, false)) { poseState=-1; }
+      }
+      break;  
+      
       // ROUTE #1 END
 
       // ROUTE #2
@@ -1032,6 +999,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   void TeleopInit() override {
     logfptr = fopen("/home/lvuser/RoborioLogTeleop2024.txt", "a");
+    //superImportantRobotFunctionDONOTREMOVE();
   }
 
   void TeleopPeriodic() override {
@@ -1090,6 +1058,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
 
     auto faceAprilTag = GetATagVariables();
+
     
 
     /**
@@ -1126,7 +1095,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   // Look To April Tag (Left Bumper)
   if (m_driverController.GetLeftBumper()) {
-    rot = -faceAprilTag;
+    rot = -faceAprilTag*10;
     fieldRelative = true;
     // std::cout << (double) faceAprilTag
     //           << std::endl;
@@ -1134,7 +1103,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   // Look / Go To April Tag (Right Bumper)
   if (m_driverController.GetRightBumper()) {
-    rot = -faceAprilTag;
+    rot = -faceAprilTag*10;
     fieldRelative = false;
     xSpeed = (units::velocity::meters_per_second_t) desiredDist * 2.0;
   }
@@ -1432,6 +1401,35 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   }
   
   //void alignwheels(gyroYawHeading)
+
+  void superImportantRobotFunctionDONOTREMOVE() {
+    #define RAND_MAX 16
+    std::string splashes[] = {
+      "I am a rat I am a theif I will still your ethernet cable. - The Rat",
+      "erROAR",
+      "Thanks C418!",
+      "we love std::",
+      "Lets try this, hahahahaha...",
+      "|:~{",
+      "People told me, you've changed you've changed and I pooped my pants",
+      "I touched the intake and it feel apart. I dont think the robot is ready yet",
+      "Finally fixed ... only took us 7 hours",
+      "Minecraft Music <3",
+      "Roboctopi <3",
+      "BURT",
+      "Team Fourty-Nine Eighteen",
+      "Thank you Jeff! <3"
+      "HANK THE TANK",
+      "go check out stantoncomet.github.io",
+      "Time for a snack break",
+      "Crabs are like jelly donuts",
+      "Look how easy it is too add more splashes!"
+    };
+
+    int randMessage = rand();
+    std::cout << splashes[randMessage]
+              << std::endl;
+  }
 };
 
 #ifndef RUNNING_FRC_TESTS
