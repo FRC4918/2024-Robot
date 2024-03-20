@@ -572,7 +572,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
 
  public:
- void RobotInit() override {
+  void RobotInit() override {
     
     // We need to run our vision program in a separate thread.
     // If not run separately (in parallel), our robot program will never
@@ -643,7 +643,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       poseState = AUTO2_START;
       m_swerve.ResetPose({ (units::foot_t) 0.0,
                            (units::foot_t) 0.0,
-                           (units::degree_t) 0.0 });
+                           (units::degree_t) 60.0 });
       
 
       printf("Auto route 2 started on ");
@@ -699,6 +699,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     switch (poseState) {
 
       // ROUTE #1
+      //Go to shooter position / shoot [
       case 0: {
         if (DriveToPose({ 
                    (units::foot_t) 0.0,
@@ -712,7 +713,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
       case 1: {
         if (DriveToPose({ 
-                   (units::foot_t) -5.0,
+                   (units::foot_t) -5.5,
               ra * (units::foot_t) -1.0,
               ra * (units::degree_t) 60.0 // -30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
@@ -721,7 +722,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
       case 2: {
         if (DriveToPose({ 
-                   (units::foot_t) -5.0,
+                   (units::foot_t) -5.5,
               ra * (units::foot_t) -1.0,
               ra * (units::degree_t) 30.0 // -30.0 //30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
@@ -749,11 +750,13 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         }
       }
       break;
+      //Go to shooter position / shoot ]
 
+      //Go to Stage Note / intake [
       case 5: {
         if (DriveToPose({ 
-                   (units::foot_t) -7.0, //-3.0 //-5.0
-              ra * (units::foot_t) -1.42, //5.0 //-1.0
+                   (units::foot_t) -8.0, //-3.0 //-5.0 //-7.0
+              ra * (units::foot_t) -1.83, //5.0 //-1.0 //-1.42
               ra * (units::degree_t) 0.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
       }
@@ -767,95 +770,311 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         } 
       }
       break;
+      //Go to Stage Note / intake ]
 
-      
+      //Go to shooter position / shoot [
       case 7: {
         if (DriveToPose({ 
-                    (units::foot_t) -5.0, //-3.6
+                    (units::foot_t) -5.5, //-3.6
                 ra * (units::foot_t) -1.0, //-3.6 //3.2
                 ra * (units::degree_t) 0.0 //30 //-25.0
-            }, false)) { poseState++; iCallCountprev = iCallCount; }
+            }, false)) {m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 }); poseState++; iCallCountprev = iCallCount; }
       }
       break;
 
       case 8: {
         if (DriveToPose({ 
-                   (units::foot_t) -5.0, //-5.0 //ig -4.8
+                   (units::foot_t) -5.5, //-5.0 //ig -4.8
               ra * (units::foot_t) -1.0, //-1.0 //ig -0.5
               ra * (units::degree_t) 30.0
             }, false) /*&& 
             iCallCountprev + 50 < iCallCount*/) { poseState++; }
       }
       break;
-
-      //5a
+      
       case 9: {
+        shooterSetVoltage(units::volt_t{ 11.0 });
+        drivebrake();
+
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); 
+          iCallCountprev = iCallCount;
+          poseState++;
+        }
+      }
+      break;
+
+      case 10 : {
+        drivebrake();
+        if (iCallCountprev + 25 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
+          shooterSetVoltage(units::volt_t{ 0.0 });
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+          poseState++; 
+        }
+      }
+      break;
+      //Go to shooter position / shoot ]
+
+      //Go to NoteA behind the stage / intake [
+      //5a
+      case 11: {
         if (DriveToPose({ 
-                   (units::foot_t) -5.0,
-              ra * (units::foot_t) -5.42,
+                   (units::foot_t) -5.5,
+              ra * (units::foot_t) -7.42, //-5.42
               ra * (units::degree_t) 0.0
-            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 }); poseState++; }
+            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); poseState++; }
       }
       break; 
 
-      case 10: {
+      case 12: {
         if (DriveToPose({ 
                    (units::foot_t) -10.75,
               ra * (units::foot_t) -5.42,
               ra * (units::degree_t) 0.0
-            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 }); poseState++; }
+            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); poseState++; }
       }
       break; 
 
       //5b
-      case 11: {
+      case 13: {
         if (DriveToPose({ 
                    (units::foot_t) -15.33,
               ra * (units::foot_t) -1.0,
               ra * (units::degree_t) 0.0
-            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 }); iCallCount = iCallCountprev; poseState++; }
+            }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); iCallCount = iCallCountprev; poseState++; }
       }
       break; 
 
       //5c
-      case 12: {
+      case 14: {
         if (DriveToPose({ 
                    (units::foot_t) -25.41,
               ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 0.0
+            }, false)) {iCallCount = iCallCountprev; poseState++; }
+      }
+      break;  
+
+      case 15: {
+        drivebrake();
+        if (iCallCountprev + 300 <= iCallCount || noteInShooter) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+          poseState++;
+        } 
+      }
+      break;
+      //Go to NoteA behind the stage / intake ]
+
+      //6
+      //Go to shooter position / shoot [
+      case 16: {
+        if (DriveToPose({ 
+                   (units::foot_t) -13.0, //-10.0
+              ra * (units::foot_t) -1.0, //4.0
               ra * (units::degree_t) 0.0
             }, false)) { m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 }); poseState++; }
       }
       break;  
 
-      case 13: {
+      case 17: {
+        if (DriveToPose({ 
+                   (units::foot_t) -13.0, //-10.0
+              ra * (units::foot_t) 4.0,
+              ra * (units::degree_t) 0.0
+            }, false)) { poseState++; }
+      }
+      break;
+
+      case 18: {
+       if (DriveToPose({ 
+                   (units::foot_t) -5.25,
+              ra * (units::foot_t) 4.0,
+              ra * (units::degree_t) 5.0
+            }, false)) { iCallCountprev = iCallCount; poseState=21; }
+      }
+      break;
+
+      case 19: {
+       if (DriveToPose({ 
+                   (units::foot_t) -5.5,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 0.0
+            }, false)) { poseState++; }
+      }
+      break;
+
+      case 20: {
+       if (DriveToPose({ 
+                   (units::foot_t) -5.5,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 30.0
+            }, false)) { iCallCountprev = iCallCount; poseState++; }
+      }
+      break;
+
+      case 21: {
+        shooterSetVoltage(units::volt_t{ 11.0 });
+        drivebrake();
+
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); 
+          iCallCountprev = iCallCount;
+          poseState++;
+        }
+      } 
+      break;
+
+      case 22: {
+        drivebrake();
+        if (iCallCountprev + 25 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
+          shooterSetVoltage(units::volt_t{ 0.0 });
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+          poseState=-1; 
+        }
+      }
+      break;
+      //Go to shooter position / shoot ]
+
+
+      // ROUTE #1 END
+
+
+
+      // ROUTE #2
+      // Go to shooter position / shoot [ 
+      case 100: {
+        if (DriveToPose({ 
+                   (units::foot_t) 0.0,
+              ra * (units::foot_t) 0.0,
+              ra * (units::degree_t) 60.0 //60.0
+            }, false) && 
+            iCallCount > 20) { poseState++; }
+
+      }
+      break;
+
+      case 101: {
+        if (DriveToPose({ 
+                   (units::foot_t) -6.0,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 60.0 // -30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      }
+      break;
+
+      case 102: {
+        if (DriveToPose({ 
+                   (units::foot_t) -6.0,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 50.0 // -30.0 //30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      } 
+      break;
+
+      case 103: {
+        shooterSetVoltage(units::volt_t{ 11.0 });
+        drivebrake();
+
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); 
+          iCallCountprev = iCallCount;
+          poseState++;
+        }
+      }
+      break;
+
+      case 104: {
+        drivebrake();
+        if (iCallCountprev + 25 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
+          shooterSetVoltage(units::volt_t{ 0.0 });
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+          poseState++; 
+        }
+      }
+      break;
+      // Go to shooter position / shoot ]
+      
+      // Go to Note-B / Intake [
+      case 105: {
+        if (DriveToPose({ 
+                   (units::foot_t) -6.75,
+              ra * (units::foot_t) -5.75,
+              ra * (units::degree_t) 0.0 // -30.0 //30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      } 
+      break;
+
+      case 106: {
+        if (DriveToPose({ 
+                   (units::foot_t) -19.75,
+              ra * (units::foot_t) -10.08,
+              ra * (units::degree_t) 0.0 // -30.0 //30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      } 
+      break;
+
+      case 107: {
+        if (DriveToPose({ 
+                   (units::foot_t) -25.25,
+              ra * (units::foot_t) -10.08,
+              ra * (units::degree_t) 0.0 // -30.0 //30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      } 
+      break;
+
+      case 108: {
        if (iCallCountprev + 300 <= iCallCount || noteInShooter) {
           m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
           poseState++;
         } 
       }
       break;
-
-      //6
-      case 14: {
-        if (DriveToPose({ 
-                   (units::foot_t) -8.0,
-              ra * (units::foot_t) 4.0,
-              ra * (units::degree_t) 0.0
-            }, false)) { poseState=-1; }
-      }
-      break;  
+      // Go to Note-B / Intake ]
       
-      // ROUTE #1 END
+      // Go to shooter position / shoot [ 
+      case 109: {
+        if (DriveToPose({ 
+                   (units::foot_t) -6.75,
+              ra * (units::foot_t) -5.75,
+              ra * (units::degree_t) 0.0 // -30.0 //30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      } 
+      break;
 
-      // ROUTE #2
-      case 100: {
-        m_swerve.Drive(units::velocity::meters_per_second_t{ 0.0 }, 
-                       units::velocity::meters_per_second_t{ 0.0 },
-                       faceAprilTag, 
-                       false, true);
-        poseState = -1;
+      case 110: {
+        if (DriveToPose({ 
+                   (units::foot_t) -6.0,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 50.0 // -30.0 //30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      } 
+      break;
+
+      case 111: {
+        shooterSetVoltage(units::volt_t{ 11.0 });
+        drivebrake();
+
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); 
+          iCallCountprev = iCallCount;
+          poseState++;
+        }
       }
       break;
+
+      case 112: {
+        drivebrake();
+        if (iCallCountprev + 25 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
+          shooterSetVoltage(units::volt_t{ 0.0 });
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+          poseState=-1; 
+        }
+      }
+      break;
+      // Go to shooter position / shoot ]
+
+      // ROUTE #2 END
+
 
       // RETURN
       case 1000: {
@@ -1303,14 +1522,18 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       auto ySpeed = m_yspeedLimiterA.Calculate(
                         transform.Y().value() / 2.0 ) * Drivetrain::kMaxSpeed;
 
-      if (AutodegreesToTurn <= -8 || 8 <= AutodegreesToTurn) {
+      if (AutodegreesToTurn <= -20 || 20 <= AutodegreesToTurn) {
         xSpeed = (units::velocity::meters_per_second_t) 0.0;
         ySpeed = (units::velocity::meters_per_second_t) 0.0;
 
         rot    = std::min( Drivetrain::kMaxAngularSpeed, rot );
         rot    = std::max( -Drivetrain::kMaxAngularSpeed, rot );
+
+      } else if (AutodegreesToTurn <= -8 || 8 <= AutodegreesToTurn) {
+        rot    = std::min( Drivetrain::kMaxAngularSpeed, rot );
+        rot    = std::max( -Drivetrain::kMaxAngularSpeed, rot );
+
       } else {
-      
         rot = (units::angular_velocity::radians_per_second_t) 0.0;
 
         dBiggestX = std::max( transform.X().value(), dBiggestX );
@@ -1402,9 +1625,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   
   //void alignwheels(gyroYawHeading)
 
-  void superImportantRobotFunctionDONOTREMOVE() {
-    #define RAND_MAX 16
-    std::string splashes[] = {
+  //
+  #define RAND_MAX 17
+  const std::string splashes[RAND_MAX+1] = {
       "I am a rat I am a theif I will still your ethernet cable. - The Rat",
       "erROAR",
       "Thanks C418!",
@@ -1423,12 +1646,14 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       "go check out stantoncomet.github.io",
       "Time for a snack break",
       "Crabs are like jelly donuts",
-      "Look how easy it is too add more splashes!"
+      "We're all gay for each other"
     };
 
+  void superImportantRobotFunctionDONOTREMOVE() {
     int randMessage = rand();
     std::cout << splashes[randMessage]
               << std::endl;
+    return;
   }
 };
 

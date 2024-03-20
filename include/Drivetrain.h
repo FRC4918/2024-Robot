@@ -82,10 +82,10 @@ private:
 #else
        // For the 2023 robot, the swerve modules got re-ordered
        // (the front-left and front-right modules got swapped):
-   SwerveModule m_frontLeft{  8,  17, 1, 304 }; //304 //294 //204 //294 //314 //304
-   SwerveModule m_frontRight{ 12, 15, 0, 54  }; //126 //24 //44 //134 //44 //54
-   SwerveModule m_backLeft{   14, 9,  3, 70  }; //24 //216 //261 //81 //71 //161 //70 
-   SwerveModule m_backRight{  11, 16, 2, 304 }; //150 //330 //285 //304 //214 //304
+   SwerveModule m_frontLeft{  8,  17, 1, 304 }; //294 //314 //304
+   SwerveModule m_frontRight{ 12, 15, 0, 58  }; //134 //44 //54 //60 //58
+   SwerveModule m_backLeft{   14, 9,  3, 71  }; //71 //161 //70 //69 //71
+   SwerveModule m_backRight{  11, 16, 2, 316 }; //319 //317 //315 //317 //316
 #endif
 
    //frc::AnalogGyro m_gyro{0};

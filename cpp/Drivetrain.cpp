@@ -84,6 +84,16 @@ void Drivetrain::Drive( units::meters_per_second_t xSpeed,
    m_frontRight.SetDesiredState( fr, bFreezeDriveMotors );
    m_backLeft.SetDesiredState(   bl, bFreezeDriveMotors );
    m_backRight.SetDesiredState(  br, bFreezeDriveMotors );
+
+   // print wheel degrees for offset testing
+   /*std::cout << "Wheel angles FL,FR/BL,BR:"
+             << std::endl
+             << m_frontLeft.GetPosition().angle.Degrees().value() << ", " << m_frontRight.GetPosition().angle.Degrees().value()
+             << std::endl
+             << m_backLeft.GetPosition().angle.Degrees().value() << ", " << m_backRight.GetPosition().angle.Degrees().value()
+             << std::endl
+             << "-----------------------------------------"
+             << std::endl;*/
 }
 
 // void Drivetrain::AllignWheels()
