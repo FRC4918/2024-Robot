@@ -119,6 +119,12 @@ WPI_VictorSPX m_RightClimberMotor{4};
 //NOTE SENSOR
 frc::DigitalInput shooterDIO{9};
 
+//NOTE STOPPER
+// #include <frc/Servo.h>
+// #include <frc/PWM.h>
+// #include <wpi/sendable/SendableHelper.h>
+// frc::Servo m_NoteStopper {2};
+
 //FILE POINTER (for log file on roborio)
 FILE *logfptr = NULL;
 
@@ -149,11 +155,11 @@ frc::Joystick m_Console{3};
 
     // Get the USB camera from CameraServer
     camera1 = frc::CameraServer::StartAutomaticCapture(0);
-    //camera2 = frc::CameraServer::StartAutomaticCapture(1);
+    camera2 = frc::CameraServer::StartAutomaticCapture(1);
 
     // Set the resolution
     camera1.SetResolution(640, 480);
-    //camera2.SetResolution(640, 480);
+    camera2.SetResolution(640, 480);
 
     // Get a CvSink. This will capture Mats from the Camera
     cvSink = frc::CameraServer::GetVideo();
@@ -966,7 +972,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         if (DriveToPose({ 
                    (units::foot_t) -6.0,
               ra * (units::foot_t) -1.0,
-              ra * (units::degree_t) 50.0 // -30.0 //30.0
+              ra * (units::degree_t) 30.0 // -30.0 //30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
       } 
       break;
@@ -998,16 +1004,16 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       case 105: {
         if (DriveToPose({ 
                    (units::foot_t) -6.75,
-              ra * (units::foot_t) -5.75,
-              ra * (units::degree_t) 0.0 // -30.0 //30.0
-            }, false)) { poseState++; iCallCountprev = iCallCount; }
+              ra * (units::foot_t) -7.75, //-5.75
+              ra * (units::degree_t) 30.0 // -30.0 //30.0
+            }, false)) { poseState=107; iCallCountprev = iCallCount; }
       } 
       break;
 
       case 106: {
         if (DriveToPose({ 
                    (units::foot_t) -19.75,
-              ra * (units::foot_t) -10.08,
+              ra * (units::foot_t) -14.0, //-10.08
               ra * (units::degree_t) 0.0 // -30.0 //30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
       } 
@@ -1016,7 +1022,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       case 107: {
         if (DriveToPose({ 
                    (units::foot_t) -25.25,
-              ra * (units::foot_t) -10.08,
+              ra * (units::foot_t) -14.0, //10.08
               ra * (units::degree_t) 0.0 // -30.0 //30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
       } 
@@ -1035,7 +1041,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       case 109: {
         if (DriveToPose({ 
                    (units::foot_t) -6.75,
-              ra * (units::foot_t) -5.75,
+              ra * (units::foot_t) -7.75, //-5.75
               ra * (units::degree_t) 0.0 // -30.0 //30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
       } 
@@ -1044,8 +1050,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       case 110: {
         if (DriveToPose({ 
                    (units::foot_t) -6.0,
-              ra * (units::foot_t) -1.0,
-              ra * (units::degree_t) 50.0 // -30.0 //30.0
+              ra * (units::foot_t) -1.0, //WE SHOULD MAKE THIS 0.0!!
+              ra * (units::degree_t) 30.0 // -30.0 //30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
       } 
       break;
@@ -1139,6 +1145,10 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     if (m_driverController.GetBackButton()) {
     std::cout << "HELLO WORLD"
               << std::endl;
+    }
+
+    if (m_operatorController.GetAButton()) {
+    //  m_NoteStopper.SetAngle(0);
     }
 
 
@@ -1249,8 +1259,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   void DriveWithJoystick(bool fieldRelative) {
     // SLOOOOOOWMODE
-    // low speed by 0.2 if holding r-trigger
-    double lowGear = m_driverController.GetRightTriggerAxis() > 0.1 ? 0.2 : 1.0;
+    // low speed by 0.3 if holding r-trigger //0.2
+    double lowGear = m_driverController.GetRightTriggerAxis() > 0.1 ? 0.3 : 1.0;
 
     // Get the x speed. We are inverting this because Xbox controllers return
     // negative values when we push forward.
@@ -1529,23 +1539,24 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         rot    = std::min( Drivetrain::kMaxAngularSpeed, rot );
         rot    = std::max( -Drivetrain::kMaxAngularSpeed, rot );
 
-      } else if (AutodegreesToTurn <= -8 || 8 <= AutodegreesToTurn) {
+      } else if (AutodegreesToTurn <= -1 || 1 <= AutodegreesToTurn) {
         rot    = std::min( Drivetrain::kMaxAngularSpeed, rot );
         rot    = std::max( -Drivetrain::kMaxAngularSpeed, rot );
 
       } else {
         rot = (units::angular_velocity::radians_per_second_t) 0.0;
-
-        dBiggestX = std::max( transform.X().value(), dBiggestX );
-        dBiggestY = std::max( transform.Y().value(), dBiggestY );
-        dSmallestX = std::min( transform.X().value(), dSmallestX );
-        dSmallestY = std::min( transform.Y().value(), dSmallestY );
-
-        xSpeed = std::min( Drivetrain::kMaxSpeed, xSpeed );
-        ySpeed = std::min( Drivetrain::kMaxSpeed, ySpeed );
-        xSpeed = std::max( -Drivetrain::kMaxSpeed, xSpeed );
-        ySpeed = std::max( -Drivetrain::kMaxSpeed, ySpeed );
       }
+
+      dBiggestX = std::max( transform.X().value(), dBiggestX );
+      dBiggestY = std::max( transform.Y().value(), dBiggestY );
+      dSmallestX = std::min( transform.X().value(), dSmallestX );
+      dSmallestY = std::min( transform.Y().value(), dSmallestY );
+
+      xSpeed = std::min( Drivetrain::kMaxSpeed, xSpeed );
+      ySpeed = std::min( Drivetrain::kMaxSpeed, ySpeed );
+      xSpeed = std::max( -Drivetrain::kMaxSpeed, xSpeed );
+      ySpeed = std::max( -Drivetrain::kMaxSpeed, ySpeed );
+      
 
       if ( !bFreezeDriveMotors && 0 == iCallCount%10 ) {
          std::cout << "DTP() X/X, Y/Y, Rot: "
