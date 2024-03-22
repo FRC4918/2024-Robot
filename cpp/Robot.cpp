@@ -40,6 +40,7 @@
 #include <rev/CANSparkMax.h>
 #include <ctre/Phoenix.h>
 #include <iostream>
+#include <frc/Servo.h>
 
 //#define SAFETY_LIMITS 1
 #define AUTO 1
@@ -110,7 +111,7 @@ WPI_TalonSRX m_IntakeMotor{3};
 
 //PIVOT MC
 //NO HARDSTOP
-WPI_TalonSRX m_ShooterPivotMotor{36};
+WPI_TalonSRX m_AmpArmMotor{36};
 
 //CLIMBER MC
 WPI_VictorSPX m_LeftClimberMotor{11};
@@ -120,10 +121,9 @@ WPI_VictorSPX m_RightClimberMotor{4};
 frc::DigitalInput shooterDIO{9};
 
 //NOTE STOPPER
-// #include <frc/Servo.h>
 // #include <frc/PWM.h>
 // #include <wpi/sendable/SendableHelper.h>
-// frc::Servo m_NoteStopper {2};
+frc::Servo m_NoteStopper {2};
 
 //FILE POINTER (for log file on roborio)
 FILE *logfptr = NULL;
@@ -154,11 +154,11 @@ frc::Joystick m_Console{3};
     frc::AprilTagPoseEstimator estimator(poseEstConfig);
 
     // Get the USB camera from CameraServer
-    camera1 = frc::CameraServer::StartAutomaticCapture(0);
-    camera2 = frc::CameraServer::StartAutomaticCapture(1);
+    camera1 = frc::CameraServer::StartAutomaticCapture(0); //Note Camera
+    camera2 = frc::CameraServer::StartAutomaticCapture(1); //April Tag Camera
 
     // Set the resolution
-    camera1.SetResolution(640, 480);
+    camera1.SetResolution(320, 240); //160, 120
     camera2.SetResolution(640, 480);
 
     // Get a CvSink. This will capture Mats from the Camera
@@ -167,7 +167,7 @@ frc::Joystick m_Console{3};
     cs::CvSource outputStream =
         frc::CameraServer::PutVideo("Detected", 640, 480);
     
-    cvSink.SetSource(camera1);
+    cvSink.SetSource(camera2);
 
     // Mats are very memory expensive. Lets reuse this Mat.
     cv::Mat mat;
@@ -282,8 +282,8 @@ frc::Joystick m_Console{3};
         double targetDist;
 
         //tag rotation
-        units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
-        desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
+        //units::angle::degree_t tagBearing = gyroYawHeadingLocal + (units::angle::degree_t) tagRotDistDeg; // calculates fixed tag location relative to initial gyro rotation
+        //desiredYaw = (double) tagBearing; // writes desired yaw to be tag location
         
         if (frc::DriverStation::kRed == frc::DriverStation::GetAlliance()) {
           switch (tagId) {
@@ -591,9 +591,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     MotorInitVictor( m_LeftClimberMotor);
     MotorInitVictor( m_RightClimberMotor);
     MotorInitTalon( m_IntakeMotor);
-    MotorInitTalon( m_ShooterPivotMotor);
-      m_ShooterPivotMotor.ConfigPeakCurrentLimit(12);       // limit motor power severely
-      m_ShooterPivotMotor.ConfigContinuousCurrentLimit(12); // to 1 Amps
+    MotorInitTalon( m_AmpArmMotor);
+      m_AmpArmMotor.ConfigPeakCurrentLimit(12);       // limit motor power severely
+      m_AmpArmMotor.ConfigContinuousCurrentLimit(12); // to 1 Amps
 
 #ifndef SPARKMAXDRIVE
     /*
@@ -617,6 +617,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   }
 
+
   void AutonomousInit() override {
     GetAllVariables();
     // Reversed auto, 1 for red, -1 for blue
@@ -630,6 +631,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     m_RightShooterMotor.SetVoltage(units::volt_t{ 0.0 });
     //m_swerve.Reset();
     iCallCount = 0;
+    m_NoteStopper.SetAngle(0);
 
     // Check which autonomous to use
     // If multiple switches are flipped, priority goes to smallest number
@@ -677,7 +679,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
     printf("AUTONOMOUS INITIALIZED");
 
-    //superImportantRobotFunctionDONOTREMOVE(); //splish splash sploosh
+    ExecutiveImportGradleSourceDirective(); //splish splash sploosh
   }
 
   void AutonomousPeriodic() override {
@@ -690,7 +692,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     gyroYawHeading = m_swerve.GetYaw();
     gyroYawRate = m_swerve.GetRate();
     noteInShooter = !shooterDIO.Get();
-    auto faceAprilTag = GetATagVariables();
+    //auto faceAprilTag = GetATagVariables();
 
     //DriveWithJoystick(false);
     if (poseStatePrev != poseState) {
@@ -730,7 +732,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         if (DriveToPose({ 
                    (units::foot_t) -5.5,
               ra * (units::foot_t) -1.0,
-              ra * (units::degree_t) 30.0 // -30.0 //30.0
+              (units::degree_t) ((desiredYaw < 50 && desiredYaw > -50) ? desiredYaw : ra * 30) // 30.0 // -30.0 //30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
       } 
       break;
@@ -1082,6 +1084,62 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       // ROUTE #2 END
 
 
+
+      // ROUTE #3
+      // ROUTE #2
+      // Go to shooter position / shoot [ 
+      case 200: {
+        if (DriveToPose({ 
+                   (units::foot_t) 0.0,
+              ra * (units::foot_t) 0.0,
+              ra * (units::degree_t) 60.0 //60.0
+            }, false) && 
+            iCallCount > 20) { poseState++; }
+
+      }
+      break;
+
+      case 201: {
+        if (DriveToPose({ 
+                   (units::foot_t) -6.0,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 60.0 // -30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      }
+      break;
+
+      case 202: {
+        if (DriveToPose({ 
+                   (units::foot_t) -6.0,
+              ra * (units::foot_t) -1.0,
+              ra * (units::degree_t) 30.0 // -30.0 //30.0
+            }, false)) { poseState++; iCallCountprev = iCallCount; }
+      } 
+      break;
+
+      case 203: {
+        shooterSetVoltage(units::volt_t{ 11.0 });
+        drivebrake();
+
+        if (m_LeftShooterMotorEncoder.GetVelocity() <= -3100 && (iCallCountprev + 100 <= iCallCount)) {
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 }); 
+          iCallCountprev = iCallCount;
+          poseState++;
+        }
+      }
+      break;
+
+      case 204: {
+        drivebrake();
+        if (iCallCountprev + 25 <= iCallCount) { //wait here with the motor spinning for 200 milliseconds
+          shooterSetVoltage(units::volt_t{ 0.0 });
+          m_IntakeMotor.SetVoltage(units::volt_t{ -12.0 });
+          poseState++; 
+        }
+      }
+      break;
+      // Go to shooter position / shoot ]
+
       // RETURN
       case 1000: {
         if (iCallCountprev + 300 <= iCallCount) {
@@ -1118,10 +1176,17 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
 
   void TestInit() override {
-    
+    m_NoteStopper.SetAngle(0);
+    iCallCount = 0;
+    //superImportantRobotEXE();
+    ExecutiveImportGradleSourceDirective();
   }
 
   void TestPeriodic() override {
+    static bool amping;
+    static int ampingStage;
+    static int iCallCountprev;
+    iCallCount++;
 
     GetAllVariables();
 
@@ -1147,9 +1212,61 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
               << std::endl;
     }
 
-    if (m_operatorController.GetAButton()) {
-    //  m_NoteStopper.SetAngle(0);
+    if (m_operatorController.GetBButton()) {
+      m_NoteStopper.SetAngle(0.0);
+      m_AmpArmMotor.SetVoltage(units::volt_t{ 3.0 });
+    } else if (m_operatorController.GetAButton()) {
+      m_NoteStopper.SetAngle(0.0);
+      m_AmpArmMotor.SetVoltage(units::volt_t{ -3.0 });
+    } else {
+      m_AmpArmMotor.SetVoltage(units::volt_t{ 0.0 });
     }
+
+    if (m_operatorController.GetYButtonPressed()) {
+      if (!amping) {
+        amping = true;
+        ampingStage = 0;
+        iCallCountprev = iCallCount;
+      }
+    }
+
+    if (amping) {
+      switch (ampingStage) {
+        case 0: {
+          shooterSetVoltage(units::volt_t{ 3.0 });
+          m_IntakeMotor.SetVoltage(units::volt_t{ -6.0 });
+          if (iCallCountprev + 12 <= iCallCount) {
+            ampingStage++;
+          }
+          break;
+        }
+        case 1: {
+          //m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+          m_NoteStopper.SetAngle(135);
+          iCallCountprev = iCallCount;
+          ampingStage++;
+          break;
+        }
+        case 2: {
+          if (iCallCountprev + 24 <= iCallCount) {
+            ampingStage = -1;
+          }
+          break;
+        }
+        case 3: {
+          
+          break;
+        }
+
+        default: {
+          m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+          shooterSetVoltage(units::volt_t{ 0.0 });
+          ampingStage = 0;
+          amping = false;
+        }
+      }
+    }
+
 
 
 // if (m_Console.) {
@@ -1226,9 +1343,11 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     }
   }
 
+
   void TeleopInit() override {
+    m_NoteStopper.SetAngle(0);
     logfptr = fopen("/home/lvuser/RoborioLogTeleop2024.txt", "a");
-    //superImportantRobotFunctionDONOTREMOVE();
+    ExecutiveImportGradleSourceDirective();
   }
 
   void TeleopPeriodic() override {
@@ -1309,14 +1428,12 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   // <Swap Camera> / Invert Controls (X)
   if (m_driverController.GetXButton()) {
-    // if (selectedCamera == camera1) {
-    //   selectedCamera = camera2;
-    // } else {
-    //   selectedCamera = camera1;
-    // }
-    // cvSink.SetSource(selectedCamera);
-    //invertContols = !invertContols; // swaps controls direction
-    //fieldRelative = false;
+    if (selectedCamera == camera1) {
+      selectedCamera = camera2;
+    } else {
+      selectedCamera = camera1;
+    }
+    cvSink.SetSource(selectedCamera);
   }
 
   // Relative Switch (A)
@@ -1430,30 +1547,31 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       m_LeftShooterMotor.SetVoltage(units::volt_t{   2.0 });
       m_RightShooterMotor.SetVoltage(units::volt_t{ -2.0 });
     } 
-    //stop note halfway through leaving
-    else if (m_operatorController.GetLeftY() > 0.1) {
-      static double targetLeftShooterMotorPos = 0.0;
-      static double targetRightShooterMotorPos = 0.0;
-      if (noteInShooter) {
-        if (!prevNoteInShooter) {
-          targetLeftShooterMotorPos = m_LeftShooterMotorEncoder.GetPosition() - 0.30;
-          targetRightShooterMotorPos = m_RightShooterMotorEncoder.GetPosition() + 0.30;
-          std::cout << "Left motor target: "
-                    << targetLeftShooterMotorPos
-                    << ",   Right motor target: "
-                    << targetRightShooterMotorPos
-                    << std::endl;
-        }
-        double leftDiff = targetLeftShooterMotorPos - m_LeftShooterMotorEncoder.GetPosition();
-        double rightDiff = targetRightShooterMotorPos - m_RightShooterMotorEncoder.GetPosition();
+    // //stop note halfway through leaving
+    // else if (m_operatorController.GetLeftY() > 0.1) {
+    //   static double targetLeftShooterMotorPos = 0.0;
+    //   static double targetRightShooterMotorPos = 0.0;
+    //   if (noteInShooter) {
+    //     if (!prevNoteInShooter) {
+    //       targetLeftShooterMotorPos = m_LeftShooterMotorEncoder.GetPosition() - 0.30;
+    //       targetRightShooterMotorPos = m_RightShooterMotorEncoder.GetPosition() + 0.30;
+    //       std::cout << "Left motor target: "
+    //                 << targetLeftShooterMotorPos
+    //                 << ",   Right motor target: "
+    //                 << targetRightShooterMotorPos
+    //                 << std::endl;
+    //     }
+    //     double leftDiff = targetLeftShooterMotorPos - m_LeftShooterMotorEncoder.GetPosition();
+    //     double rightDiff = targetRightShooterMotorPos - m_RightShooterMotorEncoder.GetPosition();
 
-        m_LeftShooterMotor.SetVoltage( units::volt_t{ -0.8 + (0.4 * leftDiff * 10) });
-        m_RightShooterMotor.SetVoltage(units::volt_t{  0.8 + (0.4 * rightDiff * 10) });
-      } else {
-        m_LeftShooterMotor.SetVoltage(units::volt_t{ -8.0*m_operatorController.GetLeftY() });
-        m_RightShooterMotor.SetVoltage(units::volt_t{ 8.0*m_operatorController.GetLeftY() });
-      }
-    }  else {
+    //     m_LeftShooterMotor.SetVoltage( units::volt_t{ -0.8 + (0.4 * leftDiff * 10) });
+    //     m_RightShooterMotor.SetVoltage(units::volt_t{  0.8 + (0.4 * rightDiff * 10) });
+    //   } else {
+    //     m_LeftShooterMotor.SetVoltage(units::volt_t{ -8.0*m_operatorController.GetLeftY() });
+    //     m_RightShooterMotor.SetVoltage(units::volt_t{ 8.0*m_operatorController.GetLeftY() });
+    //   }
+    // }  
+    else {
       m_LeftShooterMotor.SetVoltage( units::volt_t{ 0 });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 0 });
     };
@@ -1559,27 +1677,27 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       
 
       if ( !bFreezeDriveMotors && 0 == iCallCount%10 ) {
-         std::cout << "DTP() X/X, Y/Y, Rot: "
-              // << dSmallestX << "/" << dBiggestX << ", "
-              // << dSmallestY << "/" << dBiggestY << ", "
-              << transform.X().value() << "/"
-              << transform.Y().value() << "   "
-              << transform.Rotation().Degrees().value() << "  "
-              << (double) xSpeed << "/"
-              << (double) ySpeed << "/"
-              << (double) rot << "   "
-              << AutodegreesToTurn
-              // << std::endl
-              // << "Destination Pose: "
-              // << DestinationPose.X().value() << ", "
-              // << DestinationPose.Y().value() << ", "
-              // << DestinationPose.Rotation().Degrees().value()
-              // << std::endl
-              << "Estimated Pose: "
-              << m_swerve.m_poseEstimator.GetEstimatedPosition().X().value() << ", "
-              << m_swerve.m_poseEstimator.GetEstimatedPosition().Y().value() << ", "
-              << m_swerve.m_poseEstimator.GetEstimatedPosition().Rotation().Degrees().value()
-              << std::endl;
+        //  std::cout << "DTP() X/X, Y/Y, Rot: "
+        //       // << dSmallestX << "/" << dBiggestX << ", "
+        //       // << dSmallestY << "/" << dBiggestY << ", "
+        //       << transform.X().value() << "/"
+        //       << transform.Y().value() << "   "
+        //       << transform.Rotation().Degrees().value() << "  "
+        //       << (double) xSpeed << "/"
+        //       << (double) ySpeed << "/"
+        //       << (double) rot << "   "
+        //       << AutodegreesToTurn
+        //       // << std::endl
+        //       // << "Destination Pose: "
+        //       // << DestinationPose.X().value() << ", "
+        //       // << DestinationPose.Y().value() << ", "
+        //       // << DestinationPose.Rotation().Degrees().value()
+        //       // << std::endl
+        //       << "Estimated Pose: "
+        //       << m_swerve.m_poseEstimator.GetEstimatedPosition().X().value() << ", "
+        //       << m_swerve.m_poseEstimator.GetEstimatedPosition().Y().value() << ", "
+        //       << m_swerve.m_poseEstimator.GetEstimatedPosition().Rotation().Degrees().value()
+        //       << std::endl;
               }
             
 
@@ -1637,8 +1755,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   //void alignwheels(gyroYawHeading)
 
   //
-  #define RAND_MAX 17
-  const std::string splashes[RAND_MAX+1] = {
+  #define ROBOCTOPI_RAND_MAX 39
+  const std::string splashes[ROBOCTOPI_RAND_MAX+1] = {
       "I am a rat I am a theif I will still your ethernet cable. - The Rat",
       "erROAR",
       "Thanks C418!",
@@ -1657,15 +1775,41 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       "go check out stantoncomet.github.io",
       "Time for a snack break",
       "Crabs are like jelly donuts",
-      "We're all gay for each other"
+      "We're all gay for each other",
+      "When in doubt, pull it out",
+      "River Otters are so cool!",
+      "Underwater robotics forever!!!!",
+      "Come on down to Elevated!",
+      "Yeah, Might be all that you get",
+      "Yeah, Guess this might as well be it",
+      "Heaven knows I tried",
+      "☝️🤓 errmm actually",
+      "I'm an object in motion, I've lost all emotion, my two legs are broken, but look at me dance",
+      "There's a hole in the bottom of my brain...",
+      "I wish I could act in a show on TV, 'Cause then I could practice not being me",
+      "I'm the BEARer of bad news",
+      "The coders are crying for help",
+      "Put your hands up 'cuase I won't",
+      "Don't look at me, I'm just too dumb",
+      "You like JAZZ?",
+      "You got this! We believe in you!",
+      "You got this! We believe in you!",
+      "You got this! We believe in you!",
+      "You got this! We believe in you!",
+      "You got this! We believe in you!",
+      "But I'm weak, and what's wrong with that?"
     };
 
-  void superImportantRobotFunctionDONOTREMOVE() {
-    int randMessage = rand();
+  /**
+   * Required for proper functionality of the ADIX-BT0M converter
+  */
+  void ExecutiveImportGradleSourceDirective() {
+    int randMessage = rand() % ROBOCTOPI_RAND_MAX;
     std::cout << splashes[randMessage]
               << std::endl;
     return;
   }
+
 };
 
 #ifndef RUNNING_FRC_TESTS
