@@ -1426,7 +1426,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
   //   m_swerve.Drive()
   // }
 
-  // <Swap Camera> / Invert Controls (X)
+  // <Swap Camera> (X)
   if (m_driverController.GetXButton()) {
     if (selectedCamera == camera1) {
       selectedCamera = camera2;
@@ -1477,6 +1477,9 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     static bool stopIntake = false;
     static int iCallCount = 0;
     iCallCount++;
+    static bool amping;
+    static int ampingStage;
+    static int iCallCountprev;
   
         // std::cout << "Lshooter: "
         //           << m_LeftShooterMotorEncoder.GetVelocity()
@@ -1528,7 +1531,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
           fprintf(logfptr, "amps: %f\n", m_IntakeMotor.GetOutputCurrent());
         }
       }
-    } else {
+    } else if (!amping) {
       m_IntakeMotor.SetVoltage(units::volt_t{0});
     };
 
@@ -1542,36 +1545,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       //           << m_RightShooterMotorEncoder.GetVelocity()
       //           << std::endl;
     }  
-    // REVERSE SHOOTER INCASE LODGED (REMOVE IF NOT NESSASARY)
-    else if (m_operatorController.GetAButton()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{   2.0 });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ -2.0 });
-    } 
-    // //stop note halfway through leaving
-    // else if (m_operatorController.GetLeftY() > 0.1) {
-    //   static double targetLeftShooterMotorPos = 0.0;
-    //   static double targetRightShooterMotorPos = 0.0;
-    //   if (noteInShooter) {
-    //     if (!prevNoteInShooter) {
-    //       targetLeftShooterMotorPos = m_LeftShooterMotorEncoder.GetPosition() - 0.30;
-    //       targetRightShooterMotorPos = m_RightShooterMotorEncoder.GetPosition() + 0.30;
-    //       std::cout << "Left motor target: "
-    //                 << targetLeftShooterMotorPos
-    //                 << ",   Right motor target: "
-    //                 << targetRightShooterMotorPos
-    //                 << std::endl;
-    //     }
-    //     double leftDiff = targetLeftShooterMotorPos - m_LeftShooterMotorEncoder.GetPosition();
-    //     double rightDiff = targetRightShooterMotorPos - m_RightShooterMotorEncoder.GetPosition();
-
-    //     m_LeftShooterMotor.SetVoltage( units::volt_t{ -0.8 + (0.4 * leftDiff * 10) });
-    //     m_RightShooterMotor.SetVoltage(units::volt_t{  0.8 + (0.4 * rightDiff * 10) });
-    //   } else {
-    //     m_LeftShooterMotor.SetVoltage(units::volt_t{ -8.0*m_operatorController.GetLeftY() });
-    //     m_RightShooterMotor.SetVoltage(units::volt_t{ 8.0*m_operatorController.GetLeftY() });
-    //   }
-    // }  
-    else {
+    else if (!amping) {
       m_LeftShooterMotor.SetVoltage( units::volt_t{ 0 });
       m_RightShooterMotor.SetVoltage(units::volt_t{ 0 });
     };
@@ -1589,30 +1563,63 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       m_LeftClimberMotor.SetVoltage(units::volt_t{ 0 });
     }
 
-    // Pivot up (Left Bumper) (NO ACTUATOR)
-    /*if (m_operatorController.GetLeftY() > 0.1) {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{ -12.0*m_operatorController.GetLeftY() });
-      //m_ShooterPivotMotor.Set
-      std::cout << m_ShooterPivotMotor.GetSelectedSensorPosition()
-                << "  Vel: "
-                << m_ShooterPivotMotor.GetSelectedSensorVelocity()
-                << "  Amplitude: "
-                << m_ShooterPivotMotor.GetSensorCollection().GetPinStateQuadA()
-                << std::endl;
-    }
-    // Pivot down (Right Bumper)
-    else if (m_operatorController.GetLeftY() < -0.1) {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{ -12.0*m_operatorController.GetLeftY() });
-    } else {
-      m_ShooterPivotMotor.SetVoltage(units::volt_t{ 0 });
-    }*/
 
-    // SUPER E BRAKE INCASE OF SUPER DUPER EMERGENCY
-    // (BROKEN)
-    if (m_operatorController.GetYButton()) {
-      m_swerve.Drive((units::velocity::meters_per_second_t) 0, (units::velocity::meters_per_second_t) 0, (units::angular_velocity::radians_per_second_t) 0, true, true);
-      //m_operatorController.SetRumble(frc::GenericHID::RumbleType::kBothRumble, 0.5);
+    //EPIC AMPING!!
+    if (m_operatorController.GetBButton()) {
+      m_NoteStopper.SetAngle(0.0);
+      m_AmpArmMotor.SetVoltage(units::volt_t{ 6.0 });
+    } else if (m_operatorController.GetAButton()) {
+      m_NoteStopper.SetAngle(0.0);
+      m_AmpArmMotor.SetVoltage(units::volt_t{ -6.0 });
+    } else {
+      m_AmpArmMotor.SetVoltage(units::volt_t{ 0.0 });
     }
+
+    if (m_operatorController.GetYButtonPressed()) {
+      if (!amping) {
+        amping = true;
+        ampingStage = 0;
+        iCallCountprev = iCallCount;
+      }
+    }
+
+    if (amping) {
+      switch (ampingStage) {
+        case 0: {
+          shooterSetVoltage(units::volt_t{ 3.0 });
+          m_IntakeMotor.SetVoltage(units::volt_t{ -6.0 });
+          if (iCallCountprev + 6 <= iCallCount) {
+            ampingStage++;
+          }
+          break;
+        }
+        case 1: {
+          //m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+          m_NoteStopper.SetAngle(135);
+          iCallCountprev = iCallCount;
+          ampingStage++;
+          break;
+        }
+        case 2: {
+          if (iCallCountprev + 24 <= iCallCount) {
+            ampingStage = -1;
+          }
+          break;
+        }
+        case 3: {
+          
+          break;
+        }
+
+        default: {
+          m_IntakeMotor.SetVoltage(units::volt_t{ 0.0 });
+          shooterSetVoltage(units::volt_t{ 0.0 });
+          ampingStage = 0;
+          amping = false;
+        }
+      }
+    }
+
     
   }
 
