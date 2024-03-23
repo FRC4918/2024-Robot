@@ -1194,7 +1194,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     // Climbers (Right and Left Triggers)
     // - is default
     // if (Y) is held, climbers spin in reverse
-    int goReverse = m_operatorController.GetYButton() ? -1 : 1;
+    int goReverse = m_operatorController.GetXButton() ? -1 : 1;
     if (m_operatorController.GetRightTriggerAxis() > 0.3) {
       m_RightClimberMotor.SetVoltage(units::volt_t{ -6.0*m_operatorController.GetRightTriggerAxis()*goReverse });
     } else {
@@ -1537,8 +1537,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
     // Shooter (Left Bumper)
     if (m_operatorController.GetLeftBumper()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 });
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 });
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 }); // normal value -11.0
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 }); // normal value 11.0
       // std::cout << "LshootRpm:"
       //           << m_LeftShooterMotorEncoder.GetVelocity()
       //           << " RshootRpm:"
@@ -1565,13 +1565,30 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
 
     //EPIC AMPING!!
+    if (m_operatorController.GetLeftBumperPressed()) {
+      iCallCountprev = iCallCount;
+    }
+
     if (m_operatorController.GetBButton()) {
       m_NoteStopper.SetAngle(0.0);
       m_AmpArmMotor.SetVoltage(units::volt_t{ 6.0 });
     } else if (m_operatorController.GetAButton()) {
       m_NoteStopper.SetAngle(0.0);
       m_AmpArmMotor.SetVoltage(units::volt_t{ -6.0 });
-    } else {
+    } 
+    //Retract intermitantly when shooting
+    else if (m_operatorController.GetLeftBumper()) {
+      if (iCallCountprev + 50 <= iCallCount) {
+        m_AmpArmMotor.SetVoltage(units::volt_t{ -2.0 });
+      }
+      // retract for 5
+      if (iCallCountprev + 53 <= iCallCount) {
+        m_AmpArmMotor.SetVoltage(units::volt_t{ 0.0 });
+        iCallCountprev = iCallCount;
+      }
+    }
+    //Else turn off
+    else {
       m_AmpArmMotor.SetVoltage(units::volt_t{ 0.0 });
     }
 
@@ -1759,9 +1776,6 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
                        false, true);
   }
   
-  //void alignwheels(gyroYawHeading)
-
-  //
   #define ROBOCTOPI_RAND_MAX 39
   const std::string splashes[ROBOCTOPI_RAND_MAX+1] = {
       "I am a rat I am a theif I will still your ethernet cable. - The Rat",
@@ -1796,7 +1810,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       "I wish I could act in a show on TV, 'Cause then I could practice not being me",
       "I'm the BEARer of bad news",
       "The coders are crying for help",
-      "Put your hands up 'cuase I won't",
+      "Put your hands up 'cause I won't",
       "Don't look at me, I'm just too dumb",
       "You like JAZZ?",
       "You got this! We believe in you!",
