@@ -49,7 +49,7 @@ public:
         // Both of the below "maximums" are about twice what the robot
         // can actually do (about 3 meters/second and about 1 rotation/second)
    static constexpr units::meters_per_second_t kMaxSpeed =
-       3.5_mps; // about 5.5 meters per second // 5.5
+       5.5_mps; // about 5.5 meters per second // 5.5
    static constexpr units::radians_per_second_t kMaxAngularSpeed{
       4.0*std::numbers::pi}; // 2 full rotations per second
 
@@ -82,8 +82,8 @@ private:
 #else
        // For the 2023 robot, the swerve modules got re-ordered
        // (the front-left and front-right modules got swapped):
-   SwerveModule m_frontLeft{  8,  17, 1, 304 }; //294 //314 //304
-   SwerveModule m_frontRight{ 12, 15, 0, 58  }; //134 //44 //54 //60 //58
+   SwerveModule m_frontLeft{  8,  17, 1, 128 }; //294 //314 //304 //124 //122 //126 //128
+   SwerveModule m_frontRight{ 12, 15, 0, 50  }; //60 //58 //62 //54 //52 //51 //50
    SwerveModule m_backLeft{   14, 9,  3, 71  }; //71 //161 //70 //69 //71
    SwerveModule m_backRight{  11, 16, 2, 316 }; //319 //317 //315 //317 //316
 #endif

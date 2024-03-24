@@ -57,7 +57,7 @@ static frc::Pose2d pose;
 
 //Camera Variables
 cs::UsbCamera camera1;
-cs::UsbCamera camera2;
+//cs::UsbCamera camera2;
 static cs::CvSink cvSink;
 
 //Global Control Variables
@@ -82,6 +82,7 @@ static frc::Pose2d startPose = { (units::foot_t) 0.0,
 #define AUTO1_START 0
 #define AUTO2_START 100
 #define AUTO3_START 200
+#define AUTO4_START 300
 
 struct sState {
       bool   joyButton[12];
@@ -155,11 +156,11 @@ frc::Joystick m_Console{3};
 
     // Get the USB camera from CameraServer
     camera1 = frc::CameraServer::StartAutomaticCapture(0); //Note Camera
-    camera2 = frc::CameraServer::StartAutomaticCapture(1); //April Tag Camera
+    //camera2 = frc::CameraServer::StartAutomaticCapture(1); //April Tag Camera
 
     // Set the resolution
     camera1.SetResolution(320, 240); //160, 120
-    camera2.SetResolution(640, 480);
+    //camera2.SetResolution(640, 480);
 
     // Get a CvSink. This will capture Mats from the Camera
     cvSink = frc::CameraServer::GetVideo();
@@ -167,7 +168,7 @@ frc::Joystick m_Console{3};
     cs::CvSource outputStream =
         frc::CameraServer::PutVideo("Detected", 640, 480);
     
-    cvSink.SetSource(camera2);
+    cvSink.SetSource(camera1); //camera2
 
     // Mats are very memory expensive. Lets reuse this Mat.
     cv::Mat mat;
@@ -638,43 +639,56 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
     if (BUTTON_SWITCH1) {
       poseState = AUTO1_START;
       m_swerve.ResetPose({ (units::foot_t) 0.0,
-                           (units::foot_t) 0.0,
-                           (units::degree_t) 60.0 }); //60.0
+                           ra * (units::foot_t) 0.0,
+                           ra * (units::degree_t) 60.0 }); //60.0
 
 
       printf("Auto route 1 started on ");
       if (1 == ra) printf("red team.\n");
-      else printf("blue team.");
+      else printf("blue team.\n");
+      //printf("Desc: This auto shoots 3 notes including the given one");
       
     }
     else if (BUTTON_SWITCH2) {
       poseState = AUTO2_START;
       m_swerve.ResetPose({ (units::foot_t) 0.0,
-                           (units::foot_t) 0.0,
-                           (units::degree_t) 60.0 });
+                           ra * (units::foot_t) 0.0,
+                           ra * (units::degree_t) 60.0 });
       
 
       printf("Auto route 2 started on ");
       if (1 == ra) printf("red team.");
       else printf("blue team.\n");
+      //printf("Desc: This auto shoots 2 notes including the given one");
     }
     else if (BUTTON_SWITCH3) {
       poseState = AUTO3_START;
       m_swerve.ResetPose({ (units::foot_t) 0.0,
-                           (units::foot_t) 0.0,
-                           (units::degree_t) 0.0 });
+                           ra * (units::foot_t) 0.0,
+                           ra * (units::degree_t) 60.0 });
 
 
       printf("Auto route 3 started on ");
       if (1 == ra) printf("red team.");
       else printf("blue team.\n");
+      //printf("Desc: This auto shoots only the given note");
     }
-    else {
-      poseState = AUTO1_START;
+    else if (BUTTON_SWITCH4) {
+      poseState = AUTO4_START;
       m_swerve.ResetPose({ (units::foot_t) 0.0,
-                           (units::foot_t) 0.0,
-                           (units::degree_t) 60.0 }); //60.0
-      printf("No auto route selected, defaulting to route #1\n");
+                           ra * (units::foot_t) 0.0,
+                           ra * (units::degree_t) 0.0 });
+
+
+      printf("Auto route 4 started on ");
+      if (1 == ra) printf("red team.");
+      else printf("blue team.\n");
+      //printf("Desc: This auto only moves outside the line");
+    }
+    //defualt to no auto if no switches
+    else {
+      poseState = 2000;
+      printf("No auto route selected\n");
     }
 
     printf("AUTONOMOUS INITIALIZED");
@@ -1024,7 +1038,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       case 107: {
         if (DriveToPose({ 
                    (units::foot_t) -25.25,
-              ra * (units::foot_t) -14.0, //10.08
+              ra * (units::foot_t) -12.0, //10.08 //-14.0
               ra * (units::degree_t) 0.0 // -30.0 //30.0
             }, false)) { poseState++; iCallCountprev = iCallCount; }
       } 
@@ -1086,7 +1100,6 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
 
       // ROUTE #3
-      // ROUTE #2
       // Go to shooter position / shoot [ 
       case 200: {
         if (DriveToPose({ 
@@ -1139,6 +1152,38 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       }
       break;
       // Go to shooter position / shoot ]
+      //ROUTE #3 END
+
+      //ROUTE #4      
+      case 300: {
+        if (DriveToPose({ 
+                   (units::foot_t) 0.0,
+              ra * (units::foot_t) 0.0,
+              ra * (units::degree_t) 0.0 //60.0
+            }, false) && 
+            iCallCount > 20) { poseState++; }
+
+      }
+      break;
+
+      // Move 5ft out of start zone [
+      case 301: {
+        if (DriveToPose({ 
+                (units::foot_t) -5.0,
+          ra * (units::foot_t) 0.0,
+          ra * (units::degree_t) 0.0
+        }, false)) { poseState++; }
+      }
+      break;
+      case 302: {
+        if (DriveToPose({ 
+                (units::foot_t) -5.0,
+          ra * (units::foot_t) 0.0,
+          ra * (units::degree_t) 0.0
+        }, false)) { poseState=-1; }
+      }
+      break;
+      // Move 5ft out of start zone ]
 
       // RETURN
       case 1000: {
@@ -1149,6 +1194,10 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         }
       }
       break;
+
+      case 2000: {
+        poseState = -1;
+      }
 
 
       default: {
@@ -1266,8 +1315,6 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         }
       }
     }
-
-
 
 // if (m_Console.) {
     //   std::cout << "AGHAgAGAG"
@@ -1428,12 +1475,14 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
   // <Swap Camera> (X)
   if (m_driverController.GetXButton()) {
-    if (selectedCamera == camera1) {
+    /*if (selectedCamera == camera1) {
       selectedCamera = camera2;
     } else {
       selectedCamera = camera1;
     }
-    cvSink.SetSource(selectedCamera);
+    cvSink.SetSource(selectedCamera);*/
+    std::cout << "Please insert (1) cameras to continue..."
+              << std::endl;
   }
 
   // Relative Switch (A)
@@ -1537,8 +1586,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
 
     // Shooter (Left Bumper)
     if (m_operatorController.GetLeftBumper()) {
-      m_LeftShooterMotor.SetVoltage(units::volt_t{ -11.0 }); // normal value -11.0
-      m_RightShooterMotor.SetVoltage(units::volt_t{ 11.0 }); // normal value 11.0
+      m_LeftShooterMotor.SetVoltage(units::volt_t{ -12.0 }); // normal value -11.0
+      m_RightShooterMotor.SetVoltage(units::volt_t{ 12.0 }); // normal value 11.0
       // std::cout << "LshootRpm:"
       //           << m_LeftShooterMotorEncoder.GetVelocity()
       //           << " RshootRpm:"
@@ -1577,7 +1626,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       m_AmpArmMotor.SetVoltage(units::volt_t{ -6.0 });
     } 
     //Retract intermitantly when shooting
-    else if (m_operatorController.GetLeftBumper()) {
+    /*else if (m_operatorController.GetLeftBumper()) {
       if (iCallCountprev + 50 <= iCallCount) {
         m_AmpArmMotor.SetVoltage(units::volt_t{ -2.0 });
       }
@@ -1586,7 +1635,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
         m_AmpArmMotor.SetVoltage(units::volt_t{ 0.0 });
         iCallCountprev = iCallCount;
       }
-    }
+    }*/
     //Else turn off
     else {
       m_AmpArmMotor.SetVoltage(units::volt_t{ 0.0 });
@@ -1776,7 +1825,7 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
                        false, true);
   }
   
-  #define ROBOCTOPI_RAND_MAX 39
+  #define ROBOCTOPI_RAND_MAX 40
   const std::string splashes[ROBOCTOPI_RAND_MAX+1] = {
       "I am a rat I am a theif I will still your ethernet cable. - The Rat",
       "erROAR",
@@ -1818,7 +1867,8 @@ void MotorInitVictor( WPI_VictorSPX &m_motor )
       "You got this! We believe in you!",
       "You got this! We believe in you!",
       "You got this! We believe in you!",
-      "But I'm weak, and what's wrong with that?"
+      "But I'm weak, and what's wrong with that?",
+      "I just want to sniff it"
     };
 
   /**
